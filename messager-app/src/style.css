@@ -85,9 +85,8 @@ body {
     border-radius: 20px;
     margin: 0 5px;
 }
-.chat .messager {
+.chat #messager {
     display: flex;
-    flex-direction: row;
     align-items: end;
     justify-content: center;
     width: 770px;
@@ -96,9 +95,15 @@ body {
     border-radius: 20px;
     margin: 5px;
 }
-.chat .message {
+.chat .input {
+    position: relative;
+    bottom: 0;
+    display: flex;
+    flex-direction: row;
+}
+.chat #message {
     margin: 5px 0;
-    width: 700px;
+    width: 670px;
     height: 40px;
 }
 .chat button {
@@ -107,8 +112,20 @@ body {
     margin: 5px;
     padding: 0;
     letter-spacing: 0;
-    font-size: 0.9em;
+    font-size: 0.8em;
     background: #ffffff;
     color: #000;
-    font-weight: 600;
+    font-weight: 500;
+}
+.messageText {
+    position: absolute;
+    width: 100px;
+    height: 30px;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    bottom: 100px;
+    left: 0;
 }

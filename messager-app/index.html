@@ -23,7 +23,7 @@
     <h2>Регистрация</h2>
     <input type="email" placeholder="Email">
     <input type="password" placeholder="Пароль">
-    <button>Зарегистрироваться</button>
+    <button id="regBtn">Зарегистрироваться</button>
     <a href="#">Забыли пароль?</a>
     <a id="login" href="#">Войти</a>
 </div>
@@ -32,9 +32,14 @@
     <div class="chats">
 
     </div>
-    <div class="messager">
-    <input class="message" type="text" placeholder="Введите сообщение...">
-    <button id="sendBtn">Отправить</button>
+    <div id="messager">
+        <div id="messageText">
+
+        </div>
+        <div class="input">
+           <input id="message" type="text" placeholder="Введите сообщение...">
+           <button id="sendBtn">Отправить</button>
+        </div>
     </div>
 </div>
 
