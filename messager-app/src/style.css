@@ -41,7 +41,8 @@ body {
 }
 .container button {
     margin: 10px 0;
-    width: 100px;
+    padding: 0 10px;
+    width: auto;
     height: 35px;
     border: none;
     border-radius: 10px;
@@ -104,6 +105,7 @@ body {
     width: 80px;
     height: 40px;
     margin: 5px;
+    padding: 0;
     letter-spacing: 0;
     font-size: 0.9em;
     background: #ffffff;
