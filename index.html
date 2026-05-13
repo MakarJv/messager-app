@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <!-- Устанавливаем кодировку UTF-8, чтобы корректно отображался русский текст -->
+    <meta charset="UTF-8">
+
+    <!-- Настройки для адаптива на мобильных устройствах:
+         - width=device-width: ширина равна ширине экрана
+         - user-scalable=no: запрет масштабирования (для чата удобнее)
+         - initial-scale=1.0: начальный масштаб 100%
+         - viewport-fit=cover: для iPhone с вырезом -->
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!-- Подключаем библиотеку иконок Ionicons (для красивых иконок: меню, отправка, профиль) -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+    <!-- Подключаем стили (лежат в папке src) -->
+    <link rel="stylesheet" href="src/style.css">
+
+    <title>Messenger-app</title>
+</head>
+<body>
+
+<!-- ========== ОКНО ВХОДА ========== -->
+<!-- Содержит форму для входа: email, пароль, кнопка "Войти", ссылки -->
+<div class="container login">
+    <h2>Войти</h2>
+    <input placeholder="Email" type="email">
+    <input type="password" placeholder="Пароль">
+    <button id="enterBtn">Войти</button>
+    <a href="#">Забыли пароль?</a>
+    <a id="register" href="#">Регистрация</a>
+</div>
+
+<!-- ========== ОКНО РЕГИСТРАЦИИ ========== -->
+<!-- Скрыто по умолчанию (class="close") -->
+<div class="container register close">
+    <h2>Регистрация</h2>
+    <input type="email" placeholder="Email">
+    <input type="password" placeholder="Пароль">
+    <button id="regBtn">Зарегистрироваться</button>
+    <a href="#">Забыли пароль?</a>
+    <a id="login" href="#">Войти</a>
+</div>
+
+<!-- ========== ОСНОВНОЙ ЧАТ ========== -->
+<!-- Скрыт по умолчанию, появляется после успешного входа/регистрации -->
+<div class="container chat close">
+
+    <!-- ЛЕВАЯ ПАНЕЛЬ: список чатов и диалогов (на десктопе видна, на телефоне скрывается) -->
+    <div id="chats">
+        <!-- Верхняя панель левой секции: меню, заголовок "Чаты", кнопка нового чата -->
+        <div class="navBar-chats">
+            <div class="menu">
+                <ion-icon name="menu-outline"></ion-icon>
+            </div>
+            <div class="chats-title">Чаты</div>
+            <div class="new-chat-btn">
+                <ion-icon name="create-outline"></ion-icon>
+            </div>
+        </div>
+
+        <!-- Список доступных чатов (примеры: Анна, Михаил, Общий чат) -->
+        <div class="listUsers-message">
+            <div class="chat-item active">
+                <div class="chat-avatar"><ion-icon name="person-outline"></ion-icon></div>
+                <div class="chat-info">
+                    <div class="chat-name">Анна</div>
+                    <div class="chat-last-message">Привет! Как дела?</div>
+                </div>
+                <div class="chat-time">14:30</div>
+            </div>
+            <div class="chat-item">
+                <div class="chat-avatar"><ion-icon name="person-outline"></ion-icon></div>
+                <div class="chat-info">
+                    <div class="chat-name">Михаил</div>
+                    <div class="chat-last-message">Скинь фото</div>
+                </div>
+                <div class="chat-time">12:15</div>
+            </div>
+            <div class="chat-item">
+                <div class="chat-avatar"><ion-icon name="people-outline"></ion-icon></div>
+                <div class="chat-info">
+                    <div class="chat-name">Общий чат</div>
+                    <div class="chat-last-message">Добро пожаловать!</div>
+                </div>
+                <div class="chat-time">Вчера</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ПРАВАЯ ЧАСТЬ: переписка с выбранным пользователем -->
+    <div id="messager">
+        <!-- Верхняя панель чата: кнопка меню (бургер), название чата, иконка профиля -->
+        <div class="navBar-messages">
+            <div class="menu-btn" id="menuBtn">
+                <ion-icon name="menu-outline"></ion-icon>
+            </div>
+            <div class="chat-title" id="currentChatTitle">Общий чат</div>
+            <div class="profile-icon">
+                <ion-icon name="person-circle-outline"></ion-icon>
+            </div>
+        </div>
+
+        <!-- Область, куда динамически добавляются сообщения (через JavaScript) -->
+        <div id="messageText"></div>
+
+        <!-- Нижняя панель: поле ввода сообщения + кнопка отправки -->
+        <div class="input">
+            <input id="message" type="text" placeholder="Введите сообщение...">
+            <button id="sendBtn">
+                <ion-icon name="send-outline"></ion-icon>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Подключаем основной JavaScript (логика переключения окон, отправка сообщений и т.д.) -->
+<script src="src/app.js"></script>
+</body>
+</html>
