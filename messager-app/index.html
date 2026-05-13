@@ -5,6 +5,8 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="src/style.css">
     <title>Messager-app</title>
 </head>
@@ -12,7 +14,7 @@
 
 <div class="container login close">
     <h2>Войти</h2>
-    <input type="email" placeholder="Email">
+    <input placeholder="Email" type="email">
     <input type="password" placeholder="Пароль">
     <button id="enterBtn">Войти</button>
     <a href="#">Забыли пароль?</a>
@@ -28,17 +30,29 @@
     <a id="login" href="#">Войти</a>
 </div>
 
-<div class="container chat">
-    <div class="chats">
+<div class="container chat ">
+    <div id="chats">
+        <div class="navBar-chats">
+            <div class="menu">
+                <ion-icon name="menu-outline" class="menuBtn"></ion-icon>
+            </div>
+        </div>
+        <div class="listUsers-message">
 
+        </div>
     </div>
     <div id="messager">
+        <div class="navBar-messages">
+
+        </div>
         <div id="messageText">
 
         </div>
         <div class="input">
            <input id="message" type="text" placeholder="Введите сообщение...">
-           <button id="sendBtn">Отправить</button>
+           <button id="sendBtn">
+               <ion-icon name="send"></ion-icon>
+           </button>
         </div>
     </div>
 </div>
