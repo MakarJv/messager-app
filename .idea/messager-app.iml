@@ -6,5 +6,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="ionicons" level="application" />
     <orderEntry type="library" name="ionicons" level="application" />
+    <orderEntry type="library" name="@supabase" level="application" />
   </component>
 </module>
