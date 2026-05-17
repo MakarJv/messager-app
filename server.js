@@ -178,7 +178,7 @@ server.listen(PORT, HOST, () => {
     console.log('🚀 СЕРВЕР ЗАПУЩЕН С LIVE RELOAD!');
     console.log('=========================================');
     console.log(`📱 Локальный доступ: http://localhost:${PORT}`);
-    console.log(`🌐 Доступ в сети: http://${getLocalIp()}:${PORT}`);
+    console.log(`🌐 Доступ в сети: https://${getLocalIp()}:${PORT}`);
     console.log(`🔌 WebSocket порт для live reload: 3001`);
     console.log('=========================================');
     console.log('💡 При изменении HTML/CSS/JS страница обновится автоматически');

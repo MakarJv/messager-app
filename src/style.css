@@ -182,6 +182,10 @@ body {
     font-weight: 600;
     color: #250250;
     font-size: 18px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .new-chat-btn {
@@ -1127,6 +1131,21 @@ body {
     overflow-y: auto;
 }
 
+.custom-modal-body::-webkit-scrollbar {
+            width: 5px;
+    }
+
+.custom-modal-body::-webkit-scrollbar-track {
+        background: #3a2a5a;
+        border-radius: 10px;
+    }
+
+.custom-modal-body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+
+
 .profile-avatar {
     display: flex;
     justify-content: center;
@@ -1309,7 +1328,7 @@ body {
 
     .navBar {
         border-radius: 0 !important;
-        height: 56px !important;
+        height: 43px !important;
         padding: 0 12px !important;
         flex-shrink: 0 !important;
     }
@@ -1334,13 +1353,18 @@ body {
 
     .chat #message {
         flex: 1 !important;
-        height: 42px !important;
-        font-size: 16px !important;
+        height: 28px !important;
+        font-size: 12px !important;
     }
 
     #sendBtn {
-        width: 46px !important;
-        height: 46px !important;
+        width: 30px !important;
+        height: 30px !important;
+    }
+
+    #sendBtn ion-icon {
+        width: 22px !important;
+        height: 22px !important;
     }
 
     .chat #chats {
@@ -1357,11 +1381,12 @@ body {
 
     .sidebar-header {
         display: flex;
+        height: 43px;
     }
 
     .sidebar-header ion-icon {
-        width: 32px;
-        height: 32px;
+        width: 25px;
+        height: 25px;
     }
 
     .sidebar-content {
@@ -1429,15 +1454,17 @@ body {
 /* Кнопка удаления сообщения */
 .message-delete-btn {
     position: absolute;
+    margin: 0;
+    padding: 0;
     top: -8px;
     right: -8px;
-    width: 20px;
-    height: 20px;
+    width: auto;
+    height: auto;
     border-radius: 50%;
     background: #ff4444;
     color: white;
     border: none;
-    font-size: 12px;
+    font-size: 5px;
     cursor: pointer;
     display: none;
     align-items: center;
@@ -1445,8 +1472,19 @@ body {
     transition: all 0.2s ease;
 }
 
+.message-delete-btn ion-icon {
+    width: 10px;
+    height: 10px;
+    margin: 0;
+    padding: 0;
+}
+
 .message-container:hover .message-delete-btn {
     display: flex;
+    margin: 0;
+    padding: 0;
+    width: 20px;
+    height: 20px;
 }
 
 .message-delete-btn:hover {
@@ -1464,4 +1502,185 @@ body {
     color: #aaa;
     flex-shrink: 0;
     white-space: nowrap;
+}
+/* ============================================================================
+   ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ
+   ============================================================================ */
+
+.profile-avatar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.profile-avatar ion-icon {
+    font-size: 80px;
+    color: #43ca00;
+    background: #2a0a3a;
+    border-radius: 50%;
+    padding: 15px;
+}
+
+.profile-field {
+    margin-bottom: 20px;
+}
+
+.profile-field label {
+    display: block;
+    color: #ccc;
+    font-size: 13px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.profile-field input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #3a2a5a;
+    border-radius: 12px;
+    background: #1f0430;
+    color: white;
+    font-size: 15px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.profile-field input:focus {
+    outline: none;
+    border-color: #43ca00;
+    box-shadow: 0 0 0 2px rgba(67, 202, 0, 0.2);
+}
+
+.profile-field input:disabled {
+    background: #2a0a3a;
+    color: #888;
+    cursor: not-allowed;
+}
+
+.profile-hint {
+    display: block;
+    font-size: 11px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.profile-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: #1f0430;
+    border-radius: 12px;
+    margin-top: 15px;
+    font-size: 13px;
+    color: #43ca00;
+}
+
+.profile-status ion-icon {
+    font-size: 18px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Адаптация для телефонов */
+@media (max-width: 767px) {
+    .profile-avatar ion-icon {
+        font-size: 60px;
+        padding: 12px;
+    }
+
+    .profile-field input {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+}
+/* ============================================================================
+   СТАТУС ПОЛЬЗОВАТЕЛЕЙ
+   ============================================================================ */
+
+/* Индикатор статуса в списке пользователей */
+.user-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+}
+
+.user-status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.user-status.online {
+    background: #43ca00;
+    box-shadow: 0 0 5px #43ca00;
+    animation: pulse 2s infinite;
+}
+
+.user-status.offline {
+    background: #666;
+}
+
+/* Индикатор статуса в заголовке чата */
+.user-status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: 8px;
+    font-size: 0;
+}
+
+.user-status-indicator.online {
+    background: #43ca00;
+    box-shadow: 0 0 5px #43ca00;
+    animation: pulse 2s infinite;
+}
+
+.user-status-indicator.offline {
+    background: #666;
+}
+
+/* Анимация пульсации для онлайн статуса */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(67, 202, 0, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(67, 202, 0, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(67, 202, 0, 0);
+    }
+}
+
+/* Статус в боковом меню */
+.sidebar-user-status {
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sidebar-user-status::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.sidebar-user-status.online::before {
+    background: #43ca00;
+    box-shadow: 0 0 3px #43ca00;
+}
+
+.sidebar-user-status.offline::before {
+    background: #666;
 }
