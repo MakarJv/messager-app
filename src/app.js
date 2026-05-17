@@ -18,7 +18,7 @@ const regBtn = document.querySelector('#regBtn');
 const loginWindow = document.querySelector('.login');
 const registerWindow = document.querySelector('.register');
 const chatWindow = document.querySelector('.chat');
-const messageInput = document.getElementById('message');
+let messageInput = document.getElementById('message');
 const messagesContainer = document.getElementById('messageText');
 const sendButton = document.getElementById('sendBtn');
 const menuBtn = document.querySelector('#menuBtn');
@@ -46,6 +46,9 @@ let currentChatUser = null, currentChatId = null, allUsers = [], userChats = [];
 let activeTab = 'chats', searchQuery = '', mobileActiveTab = 'chats', mobileSearchQuery = '';
 let messagesSubscription = null, profilesSubscription = null, statusSubscription = null;
 let statusUpdateInterval = null, currentUserStatus = 'online', touchStartXGlobal = 0;
+let pendingFile = null;
+let isSending = false;
+let preventAutoSend = false;
 
 // =========================== 3. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===========================
 function getShortTime() {
@@ -55,6 +58,32 @@ function getShortTime() {
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+}
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Обрезка длинных имён файлов
+function truncateFileName(filename, maxLength = 30) {
+    if (!filename) return '';
+    if (filename.length <= maxLength) return filename;
+
+    const lastDot = filename.lastIndexOf('.');
+    if (lastDot === -1) {
+        return filename.slice(0, maxLength - 3) + '...';
+    }
+
+    const ext = filename.slice(lastDot);
+    const name = filename.slice(0, lastDot);
+    const availableLength = maxLength - ext.length - 3;
+
+    if (availableLength <= 0) return '...' + ext;
+
+    return name.slice(0, availableLength) + '...' + ext;
 }
 
 // =========================== 4. РЕГИСТРАЦИЯ, ВХОД, ВЫХОД ===========================
@@ -208,11 +237,38 @@ async function loadMessages() {
     if (!currentChatId) return;
     const { data: { user: cur } } = await window.sbClient.auth.getUser();
     if (!cur) return;
-    const { data, error } = await window.sbClient.from('messages').select('*').eq('chat_id', currentChatId).order('created_at', { ascending: true });
-    if (error) { console.error(error); return; }
+
+    const { data: messages, error: msgError } = await window.sbClient
+        .from('messages')
+        .select('*')
+        .eq('chat_id', currentChatId)
+        .order('created_at', { ascending: true });
+
+    if (msgError) { console.error(msgError); return; }
     if (messagesContainer) messagesContainer.innerHTML = '';
-    if (data?.length) data.forEach(m => displayMessage(m.text, m.sender_id === cur.id, m.created_at, m.id));
-    else {
+
+    if (messages?.length) {
+        for (const msg of messages) {
+            const { data: attachments } = await window.sbClient
+                .from('attachments')
+                .select('*')
+                .eq('message_id', msg.id)
+                .maybeSingle();
+
+            const isOwn = msg.sender_id === cur.id;
+
+            let attachment = null;
+            if (attachments) {
+                attachment = {
+                    url: attachments.file_url || attachments.title_id,
+                    name: attachments.file_name,
+                    size: attachments.file_size,
+                    type: attachments.file_type
+                };
+            }
+            displayMessageWithAttachment(msg.text, isOwn, msg.created_at, msg.id, attachment);
+        }
+    } else {
         const welcome = document.createElement('div');
         welcome.className = 'message-container system';
         welcome.innerHTML = `<span class="message-content">💬 Напишите первое сообщение ${currentChatUser?.name || 'собеседнику'}</span>`;
@@ -222,39 +278,10 @@ async function loadMessages() {
 }
 
 function displayMessage(text, isOwn, createdAt, msgId) {
-    const container = document.createElement('div');
-    container.className = 'message-container';
-    container.setAttribute('data-message-id', msgId);
-    if (!isOwn) container.classList.add('other');
-    const time = createdAt ? new Date(createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : getShortTime();
-    let html = `<span class="message-content">${escapeHtml(text)}</span><span class="message-time">${time}</span>`;
-    if (isOwn) html += `<button class="message-delete-btn" onclick="deleteMessage('${msgId}', this.parentElement)"><ion-icon name="close-outline"></ion-icon></button>`;
-    container.innerHTML = html;
-    messagesContainer?.appendChild(container);
-    setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 50);
+    displayMessageWithAttachment(text, isOwn, createdAt, msgId, null);
 }
 
 // =========================== 7. ОТПРАВКА И УДАЛЕНИЕ ===========================
-async function sendMessage() {
-    const val = messageInput?.value.trim();
-    if (!val) { alert('Введите сообщение'); return; }
-    if (!currentChatUser) { alert('Выберите собеседника'); return; }
-    const { data: { user: cur } } = await window.sbClient.auth.getUser();
-    if (!cur) return;
-    if (!currentChatId) {
-        const cid = await getOrCreateChatId(cur.id, currentChatUser.id);
-        if (!cid) { alert('Ошибка создания чата'); return; }
-        currentChatId = cid;
-    }
-    const { data, error } = await window.sbClient.from('messages').insert({ chat_id: currentChatId, sender_id: cur.id, receiver_id: currentChatUser.id, text: val }).select().single();
-    if (error) { console.error(error); alert('Ошибка: ' + error.message); return; }
-    if (data) displayMessage(val, true, data.created_at, data.id);
-    messageInput.value = '';
-    await loadUserChats();
-    if (window.innerWidth <= 767) await loadMobileChats();
-    setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 50);
-}
-
 async function deleteMessage(msgId, el) {
     if (!msgId) return;
     const { error } = await window.sbClient.from('messages').delete().eq('id', msgId);
@@ -276,11 +303,28 @@ function subscribeToMessages() {
     if (messagesSubscription) window.sbClient.removeChannel(messagesSubscription);
     messagesSubscription = window.sbClient.channel('messages-realtime')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async p => {
-            const msg = p.new, { data: { user: cur } } = await window.sbClient.auth.getUser();
+            const msg = p.new;
+            const { data: { user: cur } } = await window.sbClient.auth.getUser();
             if (!cur) return;
             const isOwn = msg.sender_id === cur.id;
+
             if (msg.chat_id === currentChatId && !isOwn) {
-                displayMessage(msg.text, false, msg.created_at, msg.id);
+                const { data: attachments } = await window.sbClient
+                    .from('attachments')
+                    .select('*')
+                    .eq('message_id', msg.id)
+                    .maybeSingle();
+
+                let attachment = null;
+                if (attachments) {
+                    attachment = {
+                        url: attachments.file_url || attachments.title_id,
+                        name: attachments.file_name,
+                        size: attachments.file_size,
+                        type: attachments.file_type
+                    };
+                }
+                displayMessageWithAttachment(msg.text, false, msg.created_at, msg.id, attachment);
                 setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 50);
             }
             if (!isOwn) { await loadUserChats(); if (window.innerWidth <= 767) await loadMobileChats(); }
@@ -567,7 +611,408 @@ async function loadLastState() {
     }
 }
 
-// =========================== 14. НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ ===========================
+// =========================== 14. TELEGRAM-СТИЛЬ ===========================
+function autoResizeTextarea() {
+    if (!messageInput) return;
+    messageInput.style.height = 'auto';
+    messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+}
+
+function updateCharCounter() {
+    const counter = document.getElementById('charCounter');
+    if (!counter || !messageInput) return;
+    const length = messageInput.value.length;
+    const maxLength = 4096;
+    if (length > maxLength - 100) {
+        counter.textContent = `${maxLength - length}`;
+        counter.classList.add('visible');
+        counter.style.color = length >= maxLength ? '#ff4444' : '#888';
+    } else {
+        counter.classList.remove('visible');
+    }
+}
+
+function initEmojiPicker() {
+    const emojiBtn = document.getElementById('emojiBtn');
+    const emojiPicker = document.getElementById('emojiPicker');
+    if (!emojiBtn || !emojiPicker) return;
+    emojiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex';
+    });
+    document.querySelectorAll('.emoji-list span').forEach(emoji => {
+        emoji.addEventListener('click', () => {
+            if (!messageInput) return;
+            const start = messageInput.selectionStart;
+            const end = messageInput.selectionEnd;
+            const emojiChar = emoji.textContent;
+            messageInput.value = messageInput.value.substring(0, start) + emojiChar + messageInput.value.substring(end);
+            messageInput.selectionStart = messageInput.selectionEnd = start + emojiChar.length;
+            messageInput.focus();
+            autoResizeTextarea();
+            updateCharCounter();
+            emojiPicker.style.display = 'none';
+        });
+    });
+    document.addEventListener('click', (e) => {
+        if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) emojiPicker.style.display = 'none';
+    });
+}
+
+function initMessageInput() {
+    let textarea = document.getElementById('message');
+    if (!textarea) return;
+
+    const newTextarea = textarea.cloneNode(true);
+    textarea.parentNode.replaceChild(newTextarea, textarea);
+    messageInput = newTextarea;
+
+    newTextarea.addEventListener('input', () => {
+        autoResizeTextarea();
+        updateCharCounter();
+    });
+
+    newTextarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            sendMessage();
+        }
+    });
+
+    autoResizeTextarea();
+    updateCharCounter();
+}
+
+function initAttachMenu() {
+    const attachBtn = document.getElementById('attachBtn');
+    const attachMenu = document.getElementById('attachMenu');
+    const attachPhotoBtn = document.getElementById('attachPhotoBtn');
+    const attachFileBtn = document.getElementById('attachFileBtn');
+    const photoInput = document.getElementById('photoInput');
+    const fileInput = document.getElementById('fileInput');
+    if (!attachBtn || !attachMenu) return;
+
+    attachBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        attachMenu.style.display = attachMenu.style.display === 'flex' ? 'none' : 'flex';
+    });
+    document.addEventListener('click', (e) => {
+        if (!attachMenu.contains(e.target) && e.target !== attachBtn) attachMenu.style.display = 'none';
+    });
+
+    if (attachPhotoBtn && photoInput) {
+        attachPhotoBtn.addEventListener('click', () => { photoInput.click(); attachMenu.style.display = 'none'; });
+        photoInput.addEventListener('change', async (e) => {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                console.log('📸 Выбрано фото:', file.name);
+                if (file.size > 50 * 1024 * 1024) { alert('Файл слишком большой. Максимум 50MB'); return; }
+                if (!file.type.startsWith('image/')) { alert('Пожалуйста, выберите изображение'); return; }
+                const compressedFile = await compressImage(file);
+                pendingFile = compressedFile;
+                preventAutoSend = true;
+                console.log('✅ pendingFile установлен:', pendingFile.name);
+                showFilePreview(compressedFile);
+                setTimeout(() => { preventAutoSend = false; }, 500);
+            }
+            photoInput.value = '';
+        });
+    }
+
+    if (attachFileBtn && fileInput) {
+        attachFileBtn.addEventListener('click', () => { fileInput.click(); attachMenu.style.display = 'none'; });
+        fileInput.addEventListener('change', async (e) => {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                console.log('📄 Выбран файл:', file.name);
+                if (file.size > 50 * 1024 * 1024) { alert('Файл слишком большой. Максимум 50MB'); return; }
+                pendingFile = file;
+                console.log('✅ pendingFile установлен:', pendingFile.name);
+                showFilePreview(file);
+            }
+            fileInput.value = '';
+        });
+    }
+}
+
+async function compressImage(file) {
+    console.log('🖼️ Сжатие изображения:', file.name);
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+            const img = new Image();
+            img.src = e.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width, height = img.height;
+                const maxSize = 1200;
+                if (width > height && width > maxSize) { height = (height * maxSize) / width; width = maxSize; }
+                else if (height > maxSize) { width = (width * maxSize) / height; height = maxSize; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    const compressed = new File([blob], file.name, { type: file.type, lastModified: Date.now() });
+                    console.log('✅ Изображение сжато:', compressed.name, compressed.size, 'было:', file.size);
+                    resolve(compressed);
+                }, file.type, 0.8);
+            };
+        };
+    });
+}
+
+function showFilePreview(file) {
+    const oldPreview = document.getElementById('previewContainer');
+    if (oldPreview) oldPreview.remove();
+
+    const container = document.createElement('div');
+    container.className = 'preview-container';
+    container.id = 'previewContainer';
+    const isImage = file.type?.startsWith('image/');
+    const fileSize = formatFileSize(file.size);
+
+    const updatePreview = (imageSrc) => {
+        if (isImage && imageSrc) {
+            container.innerHTML = `
+                <img src="${imageSrc}" class="preview-image">
+                <div class="preview-info">
+                    <span class="preview-name">${escapeHtml(file.name)}</span>
+                    <span class="preview-size">${fileSize}</span>
+                </div>
+                <button class="preview-remove" onclick="removeFilePreview()">✕</button>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="file-icon"><ion-icon name="document-outline"></ion-icon></div>
+                <div class="preview-info">
+                    <span class="preview-name">${escapeHtml(file.name)}</span>
+                    <span class="preview-size">${fileSize}</span>
+                </div>
+                <button class="preview-remove" onclick="removeFilePreview()">✕</button>
+            `;
+        }
+
+        const inputElement = document.getElementById('message');
+        if (inputElement && inputElement.parentNode) {
+            inputElement.parentNode.insertBefore(container, inputElement);
+        }
+    };
+
+    if (isImage) {
+        const reader = new FileReader();
+        reader.onload = (e) => updatePreview(e.target.result);
+        reader.readAsDataURL(file);
+    } else {
+        updatePreview(null);
+    }
+}
+
+function removeFilePreview() {
+    const preview = document.getElementById('previewContainer');
+    if (preview) {
+        preview.remove();
+    }
+    pendingFile = null;
+}
+
+async function uploadFile(file) {
+    if (!file) return null;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `public/${fileName}`;
+
+    console.log('📤 Загрузка в Storage:', filePath);
+
+    try {
+        const { data, error } = await window.sbClient.storage
+            .from('chat-attachments')
+            .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (error) {
+            console.error('❌ Ошибка загрузки:', error);
+            alert('Ошибка загрузки: ' + error.message);
+            return null;
+        }
+
+        console.log('✅ Загружено, data:', data);
+
+        const SUPABASE_URL = SUPABASE_CONFIG.url;
+        const bucketName = 'chat-attachments';
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketName}/${filePath}`;
+
+        console.log('📎 Публичный URL:', publicUrl);
+
+        return {
+            url: publicUrl,
+            name: file.name,
+            size: file.size,
+            type: file.type
+        };
+    } catch (err) {
+        console.error('❌ Ошибка:', err);
+        return null;
+    }
+}
+
+function initPhotoViewer() {
+    const viewer = document.getElementById('photoViewer');
+    const closeBtn = document.getElementById('photoViewerClose');
+    const viewerImg = document.getElementById('photoViewerImg');
+    if (!viewer) return;
+    closeBtn?.addEventListener('click', () => { viewer.style.display = 'none'; viewerImg.src = ''; });
+    viewer.addEventListener('click', (e) => { if (e.target === viewer) { viewer.style.display = 'none'; viewerImg.src = ''; } });
+}
+
+function openPhotoViewer(url) {
+    const viewer = document.getElementById('photoViewer');
+    const viewerImg = document.getElementById('photoViewerImg');
+    if (viewer && viewerImg) { viewerImg.src = url; viewer.style.display = 'flex'; }
+}
+
+function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachment) {
+    const container = document.createElement('div');
+    container.className = 'message-container';
+    container.setAttribute('data-message-id', messageId);
+    if (!isOwn) container.classList.add('other');
+
+    const time = createdAt ? new Date(createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : getShortTime();
+
+    let innerHTML = '';
+    if (text && text.trim()) {
+        innerHTML += `<span class="message-content">${escapeHtml(text)}</span>`;
+    }
+
+    if (attachment && attachment.url) {
+        const isImage = attachment.type?.startsWith('image/');
+        const maxNameLength = window.innerWidth <= 480 ? 20 : 35;
+        const shortName = truncateFileName(attachment.name, maxNameLength);
+
+        console.log('📸 Отображение вложения:', {
+            isImage,
+            url: attachment.url,
+            name: attachment.name,
+            shortName: shortName
+        });
+
+        if (isImage) {
+            innerHTML += `<div class="message-attachment" onclick="openPhotoViewer('${attachment.url}')">
+                <img src="${attachment.url}" alt="${escapeHtml(attachment.name)}" loading="lazy">
+            </div>`;
+        } else {
+            const fileSize = formatFileSize(attachment.size);
+            innerHTML += `<div class="message-attachment" onclick="window.open('${attachment.url}', '_blank')">
+                <div class="file-icon"><ion-icon name="document-outline"></ion-icon></div>
+                <div class="file-info">
+                    <div class="file-name">${escapeHtml(shortName)}</div>
+                    <div class="file-size">${fileSize}</div>
+                </div>
+            </div>`;
+        }
+    }
+
+    innerHTML += `<span class="message-time">${time}</span>`;
+    if (isOwn) {
+        innerHTML += `<button class="message-delete-btn" onclick="deleteMessage('${messageId}', this.parentElement)"><ion-icon name="close-outline"></ion-icon></button>`;
+    }
+
+    container.innerHTML = innerHTML;
+    messagesContainer?.appendChild(container);
+    console.log('✅ Сообщение добавлено в DOM');
+}
+
+async function sendMessage() {
+    if (preventAutoSend) {
+        console.log('⏳ Пропускаем автоматическую отправку после выбора фото');
+        return;
+    }
+    if (isSending) {
+        console.log('⏳ Отправка уже выполняется, пропускаем');
+        return;
+    }
+
+    const value = messageInput?.value.trim();
+    console.log('📞 sendMessage, value:', value, 'pendingFile:', pendingFile ? pendingFile.name : 'null');
+
+    if (!value && !pendingFile) {
+        console.log('❌ Нет ни текста, ни файла');
+        return;
+    }
+    if (!currentChatUser) {
+        alert('Сначала выберите собеседника');
+        return;
+    }
+
+    isSending = true;
+    const fileToSend = pendingFile;
+    pendingFile = null;
+
+    const preview = document.getElementById('previewContainer');
+    if (preview) preview.remove();
+
+    try {
+        const { data: { user: currentUser } } = await window.sbClient.auth.getUser();
+        if (!currentUser) { isSending = false; return; }
+
+        if (!currentChatId) {
+            const chatId = await getOrCreateChatId(currentUser.id, currentChatUser.id);
+            if (!chatId) { alert('Ошибка создания чата'); isSending = false; return; }
+            currentChatId = chatId;
+        }
+
+        let attachment = null;
+        if (fileToSend) {
+            console.log('📤 Загрузка файла:', fileToSend.name);
+            attachment = await uploadFile(fileToSend);
+            if (!attachment) { alert('Не удалось загрузить файл'); isSending = false; return; }
+            console.log('✅ Файл загружен, attachment:', attachment);
+        }
+
+        const { data, error } = await window.sbClient.from('messages').insert({
+            chat_id: currentChatId,
+            sender_id: currentUser.id,
+            receiver_id: currentChatUser.id,
+            text: value || ''
+        }).select().single();
+
+        if (error) { console.error('❌ Ошибка:', error); alert('Ошибка: ' + error.message); isSending = false; return; }
+
+        console.log('✅ Сообщение сохранено, id:', data.id);
+
+        if (attachment && data) {
+            const { error: attachError } = await window.sbClient.from('attachments').insert({
+                message_id: data.id,
+                file_url: attachment.url,
+                file_name: attachment.name,
+                file_size: attachment.size,
+                file_type: attachment.type
+            });
+            if (attachError) {
+                console.error('❌ Ошибка сохранения вложения:', attachError);
+            } else {
+                console.log('✅ Вложение сохранено');
+            }
+        }
+
+        console.log('📝 Вызов displayMessageWithAttachment с attachment:', attachment);
+        displayMessageWithAttachment(value, true, data.created_at, data.id, attachment);
+
+        messageInput.value = '';
+        autoResizeTextarea();
+        updateCharCounter();
+        await loadUserChats();
+        if (window.innerWidth <= 767) await loadMobileChats();
+        setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50);
+    } catch (err) { console.error('❌ Ошибка:', err); }
+    finally { isSending = false; console.log('🏁 Отправка завершена'); }
+}
+
+// =========================== 15. НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ ===========================
 if (registerBtn) registerBtn.onclick = e => { e.preventDefault(); registerWindow.classList.remove('close'); loginWindow.classList.add('close'); };
 if (loginBtn) loginBtn.onclick = e => { e.preventDefault(); loginWindow.classList.remove('close'); registerWindow.classList.add('close'); };
 if (enterBtn) enterBtn.onclick = enterChat;
@@ -583,14 +1028,13 @@ addEnterHandler(loginPassword, enterChat);
 addEnterHandler(regUsername, registerUser);
 addEnterHandler(regEmail, registerUser);
 addEnterHandler(regPassword, registerUser);
-addEnterHandler(messageInput, sendMessage);
 
-if (messageInput) messageInput.addEventListener('focus', () => setTimeout(() => messagesContainer.scrollTop = messagesContainer.scrollHeight, 300));
+if (messageInput) messageInput.addEventListener('focus', () => setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 300));
 const setMobileHeight = () => { const m = document.getElementById('messager'); if (m) m.style.height = window.innerHeight + 'px'; };
 window.addEventListener('resize', setMobileHeight);
 setMobileHeight();
 
-// =========================== 15. ЗАГРУЗКА СТРАНИЦЫ ===========================
+// =========================== 16. ЗАГРУЗКА СТРАНИЦЫ ===========================
 document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.getAttribute('data-tab'))));
     setupSearch();
@@ -602,6 +1046,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadUsers(); await loadUserChats();
         subscribeToMessages(); subscribeToProfiles(); subscribeToStatus();
         startStatusTracking();
+        initAttachMenu();
+        initMessageInput();
+        initEmojiPicker();
+        initPhotoViewer();
         await loadLastState();
     } else {
         loginWindow?.classList.remove('close'); registerWindow?.classList.add('close'); chatWindow?.classList.add('close');

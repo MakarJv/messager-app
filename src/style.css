@@ -473,9 +473,8 @@ body {
 
 .chat #message {
     flex: 1;
-    height: 46px;
+    height: 46px !important;
     margin: 0;
-    padding: 0 18px;
     font-size: 16px;
     border: none;
     outline: none;
@@ -1683,4 +1682,914 @@ body {
 
 .sidebar-user-status.offline::before {
     background: #666;
+}
+/* Кнопка прикрепления файла */
+.attach-btn {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 46px !important;
+    height: 46px !important;
+    border: none;
+    border-radius: 50%;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.attach-btn:hover {
+    background: #43ca00;
+    transform: scale(0.95);
+}
+
+.attach-btn ion-icon {
+    width: 32px;
+    height: 32px;
+}
+
+/* Стиль для вложения в сообщении */
+.message-attachment {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.message-attachment img {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 8px;
+}
+
+.message-attachment .file-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #43ca00;
+    border-radius: 8px;
+}
+
+.message-attachment .file-info {
+    flex: 1;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.message-attachment .file-name {
+    font-weight: 600;
+}
+
+.message-attachment .file-size {
+    font-size: 10px;
+    opacity: 0.7;
+}
+/* Контейнер для текстового поля */
+.message-input-wrapper {
+    flex: 1;
+    position: relative;
+}
+
+/* Текстовое поле как в Telegram */
+#message {
+    width: 100%;
+    height: 36px;
+    max-height: 120px;
+    padding: 8px 12px;
+    font-size: 15px;
+    line-height: 1.4;
+    border: none;
+    outline: none;
+    border-radius: 20px;
+    background: #f0f0f0;
+    resize: none;
+    overflow-y: auto;
+    font-family: inherit;
+}
+
+#message:focus {
+    outline: 2px solid #43ca00;
+    background: #fff;
+}
+
+/* Счётчик символов */
+.input-char-counter {
+    position: absolute;
+    right: 10px;
+    bottom: -18px;
+    font-size: 10px;
+    color: #888;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.input-char-counter.visible {
+    opacity: 1;
+}
+
+
+.attach-btn {
+    background: #3a2a5a;
+    color: white;
+}
+
+.attach-btn:hover {
+    background: #43ca00;
+    transform: scale(0.95);
+}
+
+.emoji-btn {
+    background: #3a2a5a;
+    color: white;
+}
+
+.emoji-btn:hover {
+    background: #ffaa00;
+    transform: scale(0.95);
+}
+
+.send-btn {
+    background: #43ca00;
+    color: white;
+}
+
+.send-btn:hover {
+    opacity: 0.85;
+    transform: scale(0.95);
+}
+
+.attach-btn ion-icon, .emoji-btn ion-icon, .send-btn ion-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Эмодзи пикер */
+.emoji-picker {
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    background: #1f0430;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 1000;
+    max-width: 300px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.emoji-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.emoji-list span {
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.emoji-list span:hover {
+    background: #3a2a5a;
+    transform: scale(1.1);
+}
+
+/* Предпросмотр файла */
+.file-preview {
+    margin: 5px 12px 0;
+    padding: 8px;
+    background: #2a0a3a;
+    border-radius: 12px;
+}
+
+.file-preview-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-preview-content .preview-image {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.file-preview-info {
+    flex: 1;
+}
+
+.file-preview-info .file-name {
+    font-size: 12px;
+    color: white;
+    display: block;
+}
+
+.file-preview-info .file-size {
+    font-size: 10px;
+    color: #aaa;
+}
+
+.cancel-preview-btn {
+    background: none;
+    border: none;
+    color: #ff4444;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+}
+
+/* Адаптация для телефонов */
+@media (max-width: 767px) {
+    .attach-btn, .emoji-btn, .send-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .attach-btn ion-icon, .emoji-btn ion-icon, .send-btn ion-icon {
+        width: 18px;
+        height: 18px;
+    }
+
+    #message {
+        font-size: 14px;
+        padding: 6px 10px;
+    }
+
+    .emoji-picker {
+        bottom: 60px;
+        max-width: 250px;
+    }
+
+    .emoji-list span {
+        font-size: 20px;
+    }
+}
+/* Контейнер для кнопки прикрепления с меню */
+.attach-wrapper {
+    position: relative;
+    width: 46px;
+    height: 46px;
+}
+
+/* Меню прикрепления */
+.attach-menu {
+    position: absolute;
+    bottom: 50px;
+    left: 0;
+    background: #1f0430;
+    border-radius: 16px;
+    padding: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 1000;
+    min-width: 140px;
+}
+
+.attach-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    color: white;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.attach-menu-item:hover {
+    background: #3a2a5a;
+}
+
+.attach-menu-item ion-icon {
+    font-size: 20px;
+    color: #ffffff;
+}
+
+/* Кнопки */
+.attach-btn, .emoji-btn, .send-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.attach-btn {
+    background: #3a2a5a;
+    color: white;
+    width: 30px !important;
+    height: 30px !important;
+}
+
+.attach-btn:hover {
+    background: #43ca00;
+    transform: scale(0.95);
+}
+
+/* Превью файлов/фото перед отправкой */
+.preview-container {
+    margin: 5px 12px 0;
+    padding: 8px;
+    background: #2a0a3a;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.preview-container .preview-image {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.preview-container .preview-info {
+    flex: 1;
+}
+
+.preview-container .preview-name {
+    font-size: 12px;
+    color: white;
+    display: block;
+}
+
+.preview-container .preview-size {
+    font-size: 10px;
+    color: #aaa;
+}
+
+.preview-container .preview-remove {
+    background: none;
+    border: none;
+    color: #ff4444;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 5px;
+}
+
+/* Вложение в сообщении */
+.message-attachment {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.message-attachment img {
+    max-width: 150px;
+    max-height: 120px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.message-attachment .file-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #43ca00;
+    border-radius: 8px;
+}
+
+/* Просмотр фото в полном размере */
+.photo-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.photo-viewer-content {
+    position: relative;
+    max-width: 90%;
+    max-height: 90%;
+}
+
+.photo-viewer-content img {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+}
+
+.photo-viewer-close {
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #ff4444;
+    color: white;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 767px) {
+    .photo-viewer-close {
+        top: 10px;
+        right: 10px;
+    }
+}
+.message-attachment img {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.message-attachment img:hover {
+    transform: scale(1.02);
+}
+/* =========================== ВЛОЖЕНИЯ В СООБЩЕНИЯХ =========================== */
+
+.message-attachment {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Изображения в сообщениях */
+.message-attachment img {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    object-fit: cover;
+}
+.message-attachment img:hover { transform: scale(1.02); }
+
+/* Иконка файла */
+.message-attachment .file-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #43ca00;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+.message-attachment .file-icon ion-icon {
+    width: 24px;
+    height: 24px;
+    color: white;
+}
+
+/* Информация о файле */
+.message-attachment .file-info {
+    flex: 1;
+    min-width: 0; /* Важно для обрезки текста */
+    overflow: hidden;
+}
+.message-attachment .file-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+.message-attachment .file-size {
+    font-size: 10px;
+    opacity: 0.7;
+    display: block;
+}
+
+/* Для своих сообщений */
+.message-container .message-attachment .file-name,
+.message-container .message-attachment .file-size {
+    color: #ffffff;
+}
+
+/* Для сообщений собеседника */
+.message-container.other .message-attachment .file-name,
+.message-container.other .message-attachment .file-size {
+    color: #1a1a1a;
+}
+
+/* Адаптация для телефона */
+@media (max-width: 767px) {
+    .message-attachment {
+        max-width: 100%;
+    }
+    .message-attachment .file-name {
+        font-size: 12px;
+        max-width: 180px;
+    }
+    .message-attachment img {
+        max-width: 150px;
+        max-height: 120px;
+    }
+}
+
+@media (max-width: 380px) {
+    .message-attachment .file-name {
+        max-width: 140px;
+        font-size: 11px;
+    }
+    .message-attachment .file-icon {
+        width: 36px;
+        height: 36px;
+    }
+}
+/* Ограничение ширины сообщения */
+.message-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-width: 75%;
+    min-width: 70px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 15px;
+    word-wrap: break-word;
+    word-break: break-word;
+    background: #43ca00;
+    color: #fff;
+    align-self: flex-end;
+    margin-left: auto;
+    margin-right: 8px;
+    animation: fadeIn 0.2s ease;
+    overflow: hidden;
+}
+
+/* Для сообщений собеседника */
+.message-container.other {
+    background: #2a2a2a;
+    align-self: flex-start;
+    margin-right: auto;
+    margin-left: 8px;
+}
+/* =========================== ФИКС ДЛЯ ДЛИННЫХ ФАЙЛОВ =========================== */
+
+/* Ограничиваем ширину всего сообщения */
+.message-container {
+    max-width: 80% !important;
+    min-width: 60px;
+    overflow: hidden;
+    word-wrap: break-word;
+    word-break: break-word;
+}
+
+/* Контейнер для вложения */
+.message-attachment {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 12px;
+    margin-top: 6px;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Иконка файла - фиксированный размер */
+.message-attachment .file-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #43ca00;
+    border-radius: 8px;
+}
+
+.message-attachment .file-icon ion-icon {
+    width: 20px;
+    height: 20px;
+    color: white;
+}
+
+/* Информация о файле - обрезаем текст */
+.message-attachment .file-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.message-attachment .file-name {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
+}
+
+.message-attachment .file-size {
+    font-size: 10px;
+    opacity: 0.7;
+    display: block;
+}
+
+/* Цвета для своих сообщений */
+.message-container .message-attachment .file-name,
+.message-container .message-attachment .file-size {
+    color: white;
+}
+
+/* Цвета для чужих сообщений */
+.message-container.other .message-attachment {
+    background: rgba(0,0,0,0.08);
+}
+
+.message-container.other .message-attachment .file-name,
+.message-container.other .message-attachment .file-size {
+    color: #1a1a1a;
+}
+
+/* Изображения в сообщениях */
+.message-attachment img {
+    max-width: 150px;
+    max-height: 120px;
+    border-radius: 10px;
+    object-fit: cover;
+}
+
+/* Телефоны */
+@media (max-width: 767px) {
+    .message-container {
+        max-width: 85% !important;
+    }
+
+    .message-attachment .file-name {
+        font-size: 11px;
+        max-width: 160px;
+    }
+
+    .message-attachment .file-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+    .message-attachment img {
+        max-width: 120px;
+        max-height: 100px;
+    }
+}
+
+@media (max-width: 380px) {
+    .message-container {
+        max-width: 90% !important;
+    }
+
+    .message-attachment .file-name {
+        font-size: 10px;
+        max-width: 120px;
+    }
+}
+/* Экстренный фикс - принудительное ограничение */
+.message-container .file-info {
+    display: block;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+    .message-container .file-info {
+        max-width: 140px;
+    }
+}
+
+@media (max-width: 380px) {
+    .message-container .file-info {
+        max-width: 100px;
+    }
+}
+/* =========================== ЭКСТРЕННЫЙ ФИКС ДЛЯ ТЕЛЕФОНА =========================== */
+
+/* Принудительно для всех мобильных устройств */
+@media (max-width: 1000px) {
+    .message-container {
+        max-width: 85% !important;
+        word-break: break-word !important;
+    }
+
+    .message-attachment {
+        max-width: 100% !important;
+        padding: 6px 10px !important;
+    }
+
+    .message-attachment .file-info {
+        max-width: 150px !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+
+    .message-attachment .file-name {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: block !important;
+        max-width: 130px !important;
+        font-size: 11px !important;
+    }
+
+    .message-attachment .file-icon {
+        width: 32px !important;
+        height: 32px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .message-attachment img {
+        max-width: 120px !important;
+        max-height: 100px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .message-attachment .file-name {
+        max-width: 100px !important;
+        font-size: 10px !important;
+    }
+
+    .message-attachment .file-info {
+        max-width: 110px !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .message-attachment .file-name {
+        max-width: 80px !important;
+        font-size: 9px !important;
+    }
+
+    .message-attachment .file-info {
+        max-width: 90px !important;
+    }
+
+    .message-attachment .file-icon {
+        width: 28px !important;
+        height: 28px !important;
+    }
+}
+/* Жёсткий фикс для всех экранов меньше 800px */
+@media (max-width: 800px) {
+    .message-attachment .file-name {
+        max-width: 120px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .message-attachment .file-info {
+        max-width: 140px !important;
+        flex-shrink: 1 !important;
+    }
+}
+/* =========================== ЖЁСТКИЙ ФИКС ДЛЯ ФАЙЛОВ НА ТЕЛЕФОНЕ =========================== */
+
+/* Принудительное ограничение для сообщений */
+.message-container {
+    max-width: 85% !important;
+    min-width: 60px !important;
+}
+
+/* Контейнер файла */
+.message-attachment {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 6px 10px !important;
+    background: rgba(0,0,0,0.15) !important;
+    border-radius: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Иконка файла */
+.message-attachment .file-icon {
+    width: 36px !important;
+    height: 36px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #43ca00 !important;
+    border-radius: 8px !important;
+}
+
+/* Информация о файле - ОБРЕЗАЕМ */
+.message-attachment .file-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Имя файла - ОБРЕЗАЕМ С ТРОЕТОЧИЕМ */
+.message-attachment .file-name {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    max-width: 150px !important;
+}
+
+/* Размер файла */
+.message-attachment .file-size {
+    font-size: 10px !important;
+    opacity: 0.7 !important;
+    display: block !important;
+}
+
+/* Свои сообщения */
+.message-container .message-attachment .file-name,
+.message-container .message-attachment .file-size {
+    color: white !important;
+}
+
+/* Чужие сообщения */
+.message-container.other .message-attachment {
+    background: rgba(0,0,0,0.08) !important;
+}
+
+.message-container.other .message-attachment .file-name,
+.message-container.other .message-attachment .file-size {
+    color: #1a1a1a !important;
+}
+
+/* Телефоны */
+@media (max-width: 767px) {
+    .message-attachment .file-name {
+        max-width: 120px !important;
+        font-size: 11px !important;
+    }
+
+    .message-attachment .file-icon {
+        width: 32px !important;
+        height: 32px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .message-attachment .file-name {
+        max-width: 100px !important;
+        font-size: 10px !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .message-attachment .file-name {
+        max-width: 80px !important;
+        font-size: 9px !important;
+    }
+
+    .message-attachment .file-icon {
+        width: 28px !important;
+        height: 28px !important;
+    }
 }
