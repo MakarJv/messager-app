@@ -49,6 +49,120 @@ let statusUpdateInterval = null, currentUserStatus = 'online', touchStartXGlobal
 let pendingFile = null;
 let isSending = false;
 let preventAutoSend = false;
+let originalTitle = document.title;  // ← ДОБАВИТЬ
+let notificationCount = 0;           // ← ДОБАВИТЬ
+let notificationSound = null;        // ← ДОБАВИТЬ
+let notificationsEnabled = false;    // ← ДОБАВИТЬ
+
+// =========================== УВЕДОМЛЕНИЯ ===========================
+
+// Инициализация звука
+function initNotificationSound() {
+    try {
+        // Создаём короткий звук через Web Audio API (без внешних файлов)
+        notificationSound = new Audio('data:audio/wav;base64,U3RlYWx0aCBzb3VuZA==');
+        // Или используем встроенный beep через Web Audio
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext) {
+            notificationSound = {
+                play: () => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    osc.frequency.value = 880;
+                    gain.gain.value = 0.3;
+                    osc.start();
+                    gain.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
+                    osc.stop(audioContext.currentTime + 0.5);
+                    audioContext.resume();
+                }
+            };
+        }
+    } catch(e) { console.log('Звук не поддерживается'); }
+}
+
+// Запрос разрешения на уведомления
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        console.log('Браузер не поддерживает уведомления');
+        return false;
+    }
+
+    if (Notification.permission === 'granted') {
+        notificationsEnabled = true;
+        return true;
+    }
+
+    if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        notificationsEnabled = permission === 'granted';
+        return notificationsEnabled;
+    }
+    return false;
+}
+
+// Отправка уведомления
+function showNotification(title, body, tag = 'message') {
+    // Если уведомления отключены в настройках
+    if (localStorage.getItem('notifications') === 'false') return;
+
+    // Если страница активна, не показываем уведомление
+    if (!document.hidden) return;
+
+    if (notificationsEnabled && Notification.permission === 'granted') {
+        const notification = new Notification(title, {
+            body: body,
+            icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2343ca00"%3E%3Cpath d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/%3E%3C/svg%3E',
+            tag: tag,
+            silent: false
+        });
+
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+
+        setTimeout(() => notification.close(), 5000);
+    }
+
+    // Проигрываем звук (если включён)
+    if (localStorage.getItem('sound') !== 'false' && notificationSound) {
+        notificationSound.play().catch(e => console.log('Sound error:', e));
+    }
+}
+
+// Обновление заголовка страницы (мигающий)
+function updateTitleNotification() {
+    if (document.hidden && notificationCount > 0) {
+        document.title = `📩 (${notificationCount}) ${originalTitle}`;
+    } else {
+        document.title = originalTitle;
+        notificationCount = 0;
+    }
+}
+
+// Добавление счётчика уведомлений
+function addNotification() {
+    if (document.hidden) {
+        notificationCount++;
+        updateTitleNotification();
+    }
+}
+
+// Сброс уведомлений при фокусе на окно
+window.addEventListener('focus', () => {
+    notificationCount = 0;
+    updateTitleNotification();
+});
+
+// Проверка видимости страницы
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        notificationCount = 0;
+        updateTitleNotification();
+    }
+});
 
 // =========================== 3. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===========================
 function getShortTime() {
@@ -122,6 +236,10 @@ async function enterChat() {
         loginUsername.value = loginPassword.value = '';
         await loadUsers(); await loadUserChats();
         startStatusTracking(); subscribeToStatus();
+
+        // ← ДОБАВИТЬ ЗАПРОС УВЕДОМЛЕНИЙ
+        initNotificationSound();
+        requestNotificationPermission();
     }
 }
 
@@ -307,6 +425,27 @@ function subscribeToMessages() {
             const { data: { user: cur } } = await window.sbClient.auth.getUser();
             if (!cur) return;
             const isOwn = msg.sender_id === cur.id;
+
+            // ← ДОБАВИТЬ УВЕДОМЛЕНИЕ ДЛЯ ЧУЖИХ СООБЩЕНИЙ
+            if (!isOwn) {
+                // Получаем имя отправителя
+                const { data: profile } = await window.sbClient
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', msg.sender_id)
+                    .single();
+
+                const senderName = profile?.username || 'Пользователь';
+                const messageText = msg.text?.substring(0, 50) || '📎 Файл';
+
+                // Показываем уведомление
+                showNotification(senderName, messageText, `chat_${msg.sender_id}`);
+
+                // Добавляем счётчик, если чат не открыт
+                if (msg.chat_id !== currentChatId) {
+                    addNotification();
+                }
+            }
 
             if (msg.chat_id === currentChatId && !isOwn) {
                 const { data: attachments } = await window.sbClient
@@ -553,11 +692,16 @@ async function showProfileModal() {
 function showSettingsModal() {
     const modal = document.createElement('div');
     modal.className = 'custom-modal';
-    modal.innerHTML = `<div class="custom-modal-content"><div class="custom-modal-header"><ion-icon name="settings-outline"></ion-icon><h3>Настройки</h3><button class="modal-close-btn"><ion-icon name="close-outline"></ion-icon></button></div><div class="custom-modal-body"><div class="settings-item"><label>Уведомления</label><input type="checkbox" id="notificationsCheckbox" ${localStorage.getItem('notifications') !== 'false' ? 'checked' : ''}></div><div class="settings-item"><label>Тёмная тема</label><input type="checkbox" id="darkThemeCheckbox" ${localStorage.getItem('darkTheme') === 'true' ? 'checked' : ''}></div></div></div>`;
+    modal.innerHTML = `<div class="custom-modal-content"><div class="custom-modal-header"><ion-icon name="settings-outline"></ion-icon><h3>Настройки</h3><button class="modal-close-btn"><ion-icon name="close-outline"></ion-icon></button></div><div class="custom-modal-body">
+        <div class="settings-item"><label>🔔 Уведомления</label><input type="checkbox" id="notificationsCheckbox" ${localStorage.getItem('notifications') !== 'false' ? 'checked' : ''}></div>
+        <div class="settings-item"><label>🔊 Звук сообщений</label><input type="checkbox" id="soundCheckbox" ${localStorage.getItem('sound') !== 'false' ? 'checked' : ''}></div>
+        <div class="settings-item"><label>🌙 Тёмная тема</label><input type="checkbox" id="darkThemeCheckbox" ${localStorage.getItem('darkTheme') === 'true' ? 'checked' : ''}></div>
+    </div></div>`;
     document.body.appendChild(modal);
     modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
     modal.onclick = e => { if (e.target === modal) modal.remove(); };
     modal.querySelector('#notificationsCheckbox').onchange = e => localStorage.setItem('notifications', e.target.checked);
+    modal.querySelector('#soundCheckbox').onchange = e => localStorage.setItem('sound', e.target.checked);
     modal.querySelector('#darkThemeCheckbox').onchange = e => {
         localStorage.setItem('darkTheme', e.target.checked);
         document.body.style.background = e.target.checked ? '#1a1a2e' : '#250250';
@@ -918,7 +1062,7 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
 
     innerHTML += `<span class="message-time">${time}</span>`;
     if (isOwn) {
-        innerHTML += `<button class="message-delete-btn" onclick="deleteMessage('${messageId}', this.parentElement)"><ion-icon name="close-outline"></ion-icon></button>`;
+        innerHTML += `<button class="message-delete-btn" onclick="deleteMessage('${messageId}', this.parentElement)"><ion-icon name="close-outline" style="color: #ffffff"></ion-icon></button>`;
     }
 
     container.innerHTML = innerHTML;
