@@ -51,8 +51,11 @@ body {
     justify-content: center;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    padding: 12px;
+    width: auto;
+    margin: 0;
+    padding: 0;
     position: relative;
+    overflow: hidden;
 }
 
 /* ----- ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ ----- */
@@ -145,6 +148,7 @@ body {
 /* ----- ЛЕВАЯ ПАНЕЛЬ (СПИСОК ЧАТОВ) ----- */
 .chat #chats {
     width: 320px;
+    height: 100%;
     flex-shrink: 0;
     background: var(--white);
     border-radius: var(--radius-lg);
@@ -155,10 +159,11 @@ body {
 }
 
 .navBar {
+    height: 54px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 6px 6px 6px 40px;
     background: var(--white);
     border-bottom: 1px solid var(--gray-border);
 }
@@ -175,12 +180,13 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 16px;
+    height: 40px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--gray-border);
 }
 
 .search-box ion-icon {
-    font-size: 18px;
+    font-size: 24px;
     color: var(--gray-text);
 }
 
@@ -189,6 +195,9 @@ body {
     border: none;
     background: transparent;
     font-size: 14px;
+    height: 100%;
+    width: 100%;
+    margin: 0;
 }
 
 .search-box input::placeholder {
@@ -380,6 +389,7 @@ body {
 /* ----- ПРАВАЯ ПАНЕЛЬ (ЧАТ) ----- */
 .chat #messager {
     flex: 1;
+    height: 100% !important;
     background: var(--white);
     border-radius: var(--radius-lg);
     display: flex;
@@ -412,8 +422,8 @@ body {
 }
 
 .profile-icon {
-    width: 36px;
-    height: 36px;
+    width: 42px;
+    height: 42px;
     background: var(--primary-light);
     border-radius: 50%;
     display: flex;
@@ -428,8 +438,8 @@ body {
 }
 
 .profile-icon ion-icon {
-    width: 20px;
-    height: 20px;
+    width: 26px;
+    height: 26px;
     color: var(--primary);
 }
 
@@ -448,13 +458,12 @@ body {
     position: relative;
     max-width: 70%;
     padding: 10px 14px;
-    border-radius: 18px;
     font-size: 14px;
     word-wrap: break-word;
     background: var(--primary);
     color: white;
     align-self: flex-end;
-    border-bottom-right-radius: 4px;
+    border-radius: 18px 18px 4px 18px;
     animation: fadeIn 0.2s ease;
 }
 
@@ -470,7 +479,7 @@ body {
 .message-container.system {
     background: transparent;
     color: var(--gray-text);
-    font-size: 12px;
+    font-size: 14px;
     text-align: center;
     align-self: center;
     max-width: 90%;
@@ -491,7 +500,7 @@ body {
 }
 
 /* Кнопка удаления (только для своих) */
-.message-delete-btn {
+.message-container .message-delete-btn {
     position: absolute;
     top: -8px;
     right: -8px;
@@ -512,7 +521,7 @@ body {
     display: flex;
 }
 
-.message-delete-btn:hover {
+.message-container .message-delete-btn:hover {
     background: var(--red-dark);
     transform: scale(1.1);
 }
@@ -615,22 +624,27 @@ body {
 
 /* ----- ПОЛЕ ВВОДА ----- */
 .chat .input {
+    min-height: 62px;
     display: flex;
+    align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    padding: 6px 8px;
     background: var(--white);
     border-top: 1px solid var(--gray-border);
 }
 
 .attach-wrapper {
     position: relative;
-}
-
-.attach-btn {
     width: 40px;
     height: 40px;
+}
+
+.attach-wrapper .attach-btn {
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    padding: 0;
     border: none;
-    background: var(--gray-light);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -646,7 +660,7 @@ body {
 .attach-btn ion-icon {
     width: 20px;
     height: 20px;
-    color: var(--primary);
+    color: var(--white);
 }
 
 .attach-menu {
@@ -658,7 +672,8 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     padding: 8px;
     z-index: 100;
-    min-width: 140px;
+    min-width: 120px;
+    height: 120px;
     display: none;
     flex-direction: column;
 }
@@ -668,7 +683,9 @@ body {
     align-items: center;
     gap: 12px;
     width: 100%;
+    height: 40px;
     padding: 10px 12px;
+    margin: 0;
     border: none;
     background: transparent;
     border-radius: 8px;
@@ -682,16 +699,22 @@ body {
     background: var(--gray-light);
 }
 
+.attach-menu-item ion-icon {
+    width: 20px;
+    height: 20px;
+}
+
 .message-input-wrapper {
     flex: 1;
     position: relative;
+    width: 100%;
+    height: 40px;
 }
 
-#message {
+.message-input-wrapper #message {
     width: 100%;
-    min-height: 40px;
-    max-height: 120px;
-    padding: 10px 16px;
+    height: 40px !important;
+    padding: 8px 16px;
     border: 1px solid var(--gray-border);
     border-radius: 24px;
     font-size: 14px;
@@ -721,6 +744,8 @@ body {
 }
 
 #sendBtn {
+    margin: 0;
+    padding: 0;
     width: 40px;
     height: 40px;
     border: none;
@@ -744,20 +769,20 @@ body {
     color: white;
 }
 
-/* Превью файла */
+/* Превью файлов/фото перед отправкой */
 .preview-container {
-    margin: 5px 16px 0;
+    margin: 8px 12px 0;
     padding: 8px 12px;
-    background: var(--gray-light);
-    border-radius: var(--radius-sm);
+    background: #2a0a3a;
+    border-radius: 12px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .preview-container .preview-image {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     object-fit: cover;
     border-radius: 8px;
 }
@@ -767,39 +792,35 @@ body {
 }
 
 .preview-container .preview-name {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 13px;
+    color: white;
     display: block;
+    word-break: break-all;
 }
 
 .preview-container .preview-size {
-    font-size: 10px;
-    color: var(--gray-text);
+    font-size: 11px;
+    color: #aaa;
+    display: block;
 }
 
 .preview-container .preview-remove {
     background: none;
     border: none;
-    color: var(--red);
+    color: #ff4444;
     cursor: pointer;
     font-size: 18px;
     padding: 5px;
-}
-
-.preview-container .file-icon {
-    width: 40px;
-    height: 40px;
-    background: var(--primary-light);
-    border-radius: 8px;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.preview-container .file-icon ion-icon {
-    width: 24px;
-    height: 24px;
-    color: var(--primary);
+.preview-container .preview-remove:hover {
+    background: rgba(255, 68, 68, 0.2);
 }
 
 /* ----- БОКОВОЕ МЕНЮ (ТЕЛЕФОН) ----- */
@@ -1103,14 +1124,16 @@ body {
     object-fit: contain;
 }
 
-.photo-viewer-close {
+.photo-viewer-content .photo-viewer-close {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
+    top: 5px;
+    right: 5px;
+    width: 30px;
+    height: 30px;
+    margin: 0;
+    padding: 0;
     border-radius: 50%;
-    background: var(--red);
+    background: rgba(0, 0, 0, 0.5);
     border: none;
     color: white;
     font-size: 20px;
@@ -1121,8 +1144,16 @@ body {
     transition: var(--transition);
 }
 
-.photo-viewer-close:hover {
+.photo-viewer-content .photo-viewer-close:hover {
     transform: scale(1.1);
+    background: rgba(0, 0, 0, 0.95);
+    opacity: 0.8;
+    transition-delay: var(--transition);
+}
+
+.photo-viewer-content .photo-viewer-close ion-icon {
+    width: 22px;
+    height: 22px;
 }
 
 /* ----- МОДАЛЬНЫЕ ОКНА ----- */
@@ -1406,8 +1437,7 @@ body {
     }
 
     .chat .input {
-        padding: 10px 12px;
-        padding-bottom: max(10px, env(safe-area-inset-bottom));
+        padding: 10px 12px max(10px, env(safe-area-inset-bottom));
     }
 
     .navBar {
@@ -1531,4 +1561,148 @@ body.dark .sidebar-search input {
 body.dark .search-box input::placeholder,
 body.dark .sidebar-search input::placeholder {
     color: var(--gray-text);
+}
+/* =========================== НАСТРОЙКИ =========================== */
+
+/* =========================== TOGGLE SWITCH (ПЕРЕКЛЮЧАТЕЛИ) =========================== */
+
+/* Скрываем стандартный чекбокс */
+.settings-item select {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #3a2a5a;
+    background: #1f0430;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.settings-item input[type="checkbox"] {
+    display: none;
+}
+
+/* =========================== АККУРАТНЫЕ TOGGLE SWITCH =========================== */
+
+/* Скрываем стандартный чекбокс */
+.settings-item input[type="checkbox"] {
+    display: none;
+}
+
+/* Стиль для переключателя */
+.settings-item .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Кнопки */
+.settings-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: none;
+    background: #3a2a5a;
+    color: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.settings-btn:hover {
+    background: #43ca00;
+    transform: scale(0.98);
+}
+
+/* Ссылки */
+.settings-link {
+    background: none;
+    border: none;
+    color: #43ca00;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.settings-link:hover {
+    opacity: 0.7;
+    text-decoration: underline;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #4a4a6a;
+    border-radius: 24px;
+    transition: all 0.25s ease;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: all 0.25s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Активное состояние */
+input[type="checkbox"]:checked + .toggle-slider {
+    background-color: #43ca00;
+}
+
+input[type="checkbox"]:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+/* Hover эффект */
+.toggle-switch:hover .toggle-slider {
+    opacity: 0.85;
+}
+
+.toggle-switch:hover .toggle-slider:before {
+    transform: scale(1.05);
+}
+
+/* Фокус для доступности */
+.toggle-switch:focus-within .toggle-slider {
+    outline: 2px solid #43ca00;
+    outline-offset: 2px;
+}
+
+/* Disabled состояние */
+input[type="checkbox"]:disabled + .toggle-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Маленький вариант для телефонов */
+@media (max-width: 767px) {
+    .toggle-switch {
+        width: 40px;
+        height: 22px;
+    }
+
+    .toggle-slider:before {
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+    }
+
+    input[type="checkbox"]:checked + .toggle-slider:before {
+        transform: translateX(18px);
+    }
 }

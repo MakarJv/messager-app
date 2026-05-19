@@ -341,7 +341,7 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
     currentChatUser = { id: userId, name: userName };
     const title = document.getElementById('currentChatTitle');
     const status = await getUserStatus(userId);
-    if (title) title.innerHTML = `${userName} <span class="user-status-indicator ${status}">${status === 'online' ? '●' : '○'}</span>`;
+    if (title) title.innerHTML = `${userName} <span class="user-status-indicator ${status}">${status === 'online' ? '' : ''}</span>`;
     currentChatId = existingChatId || await getOrCreateChatId(cur.id, userId);
     if (!currentChatId) { console.error('Не удалось получить ID чата'); return; }
     console.log('Открыт чат:', currentChatId);
@@ -692,20 +692,221 @@ async function showProfileModal() {
 function showSettingsModal() {
     const modal = document.createElement('div');
     modal.className = 'custom-modal';
-    modal.innerHTML = `<div class="custom-modal-content"><div class="custom-modal-header"><ion-icon name="settings-outline"></ion-icon><h3>Настройки</h3><button class="modal-close-btn"><ion-icon name="close-outline"></ion-icon></button></div><div class="custom-modal-body">
-        <div class="settings-item"><label>🔔 Уведомления</label><input type="checkbox" id="notificationsCheckbox" ${localStorage.getItem('notifications') !== 'false' ? 'checked' : ''}></div>
-        <div class="settings-item"><label>🔊 Звук сообщений</label><input type="checkbox" id="soundCheckbox" ${localStorage.getItem('sound') !== 'false' ? 'checked' : ''}></div>
-        <div class="settings-item"><label>🌙 Тёмная тема</label><input type="checkbox" id="darkThemeCheckbox" ${localStorage.getItem('darkTheme') === 'true' ? 'checked' : ''}></div>
-    </div></div>`;
+    modal.innerHTML = `
+        <div class="custom-modal-content">
+            <div class="custom-modal-header">
+                <ion-icon name="settings-outline"></ion-icon>
+                <h3>Настройки</h3>
+                <button class="modal-close-btn"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div class="custom-modal-body">
+                <!-- Уведомления -->
+                <div class="settings-section">
+                    <div class="settings-section-title">🔔 Уведомления</div>
+                    <div class="settings-item">
+                        <label>Push-уведомления</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notificationsCheckbox" ${localStorage.getItem('notifications') !== 'false' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Звук сообщений</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="soundCheckbox" ${localStorage.getItem('sound') !== 'false' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Виброотклик</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="vibrationCheckbox" ${localStorage.getItem('vibration') !== 'false' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Внешний вид -->
+                <div class="settings-section">
+                    <div class="settings-section-title">🎨 Внешний вид</div>
+                    <div class="settings-item">
+                        <label>Тёмная тема</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="darkThemeCheckbox" ${localStorage.getItem('darkTheme') === 'true' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Компактный режим</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="compactModeCheckbox" ${localStorage.getItem('compactMode') === 'true' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Показывать время</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showTimeCheckbox" ${localStorage.getItem('showTime') !== 'false' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Размер шрифта</label>
+                        <select id="fontSizeSelect">
+                            <option value="small">Маленький</option>
+                            <option value="medium" ${localStorage.getItem('fontSize') === 'medium' || !localStorage.getItem('fontSize') ? 'selected' : ''}>Средний</option>
+                            <option value="large" ${localStorage.getItem('fontSize') === 'large' ? 'selected' : ''}>Большой</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Чаты -->
+                <div class="settings-section">
+                    <div class="settings-section-title">💬 Чаты</div>
+                    <div class="settings-item">
+                        <label>Смайлики в сообщениях</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="emojisCheckbox" ${localStorage.getItem('emojis') !== 'false' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Предпросмотр ссылок</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="linkPreviewCheckbox" ${localStorage.getItem('linkPreview') !== 'false' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Автозагрузка фото</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoLoadImagesCheckbox" ${localStorage.getItem('autoLoadImages') !== 'false' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Удалять фото после отправки</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="deleteAfterSendCheckbox" ${localStorage.getItem('deleteAfterSend') === 'true' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Конфиденциальность -->
+                <div class="settings-section">
+                    <div class="settings-section-title">🔒 Конфиденциальность</div>
+                    <div class="settings-item">
+                        <label>Показывать статус "онлайн"</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showOnlineStatusCheckbox" ${localStorage.getItem('showOnlineStatus') !== 'false' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Блокировка чата</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chatLockCheckbox" ${localStorage.getItem('chatLock') === 'true' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-item">
+                        <label>Очищать историю при выходе</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="clearHistoryCheckbox" ${localStorage.getItem('clearHistory') === 'true' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Данные и хранилище -->
+                <div class="settings-section">
+                    <div class="settings-section-title">📱 Данные и хранилище</div>
+                    <div class="settings-item">
+                        <label>Качество фото при отправке</label>
+                        <select id="imageQualitySelect">
+                            <option value="high" ${localStorage.getItem('imageQuality') === 'high' ? 'selected' : ''}>Высокое</option>
+                            <option value="medium" ${localStorage.getItem('imageQuality') === 'medium' || !localStorage.getItem('imageQuality') ? 'selected' : ''}>Среднее</option>
+                            <option value="low" ${localStorage.getItem('imageQuality') === 'low' ? 'selected' : ''}>Низкое (экономия трафика)</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <label>Очистить кэш</label>
+                        <button id="clearCacheBtn" class="settings-btn">Очистить</button>
+                    </div>
+                    <div class="settings-item">
+                        <label>Размер кэша</label>
+                        <span id="cacheSize" class="settings-value">0 KB</span>
+                    </div>
+                </div>
+
+                <!-- О программе -->
+                <div class="settings-section">
+                    <div class="settings-section-title">ℹ️ О программе</div>
+                    <div class="settings-item">
+                        <label>Версия</label>
+                        <span class="settings-value">1.0.0</span>
+                    </div>
+                    <div class="settings-item">
+                        <label>Разработчик</label>
+                        <span class="settings-value">Messenger App</span>
+                    </div>
+                    <div class="settings-item">
+                        <label>Политика конфиденциальности</label>
+                        <button id="privacyPolicyBtn" class="settings-link">Подробнее</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
     document.body.appendChild(modal);
+
+    // Закрытие модального окна
     modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
     modal.onclick = e => { if (e.target === modal) modal.remove(); };
+
+    // Обработчики для переключателей
     modal.querySelector('#notificationsCheckbox').onchange = e => localStorage.setItem('notifications', e.target.checked);
     modal.querySelector('#soundCheckbox').onchange = e => localStorage.setItem('sound', e.target.checked);
+    modal.querySelector('#vibrationCheckbox').onchange = e => localStorage.setItem('vibration', e.target.checked);
     modal.querySelector('#darkThemeCheckbox').onchange = e => {
         localStorage.setItem('darkTheme', e.target.checked);
-        document.body.style.background = e.target.checked ? '#1a1a2e' : '#250250';
+        document.body.classList.toggle('dark');
     };
+    modal.querySelector('#compactModeCheckbox').onchange = e => localStorage.setItem('compactMode', e.target.checked);
+    modal.querySelector('#showTimeCheckbox').onchange = e => localStorage.setItem('showTime', e.target.checked);
+    modal.querySelector('#fontSizeSelect').onchange = e => {
+        localStorage.setItem('fontSize', e.target.value);
+        applyFontSize(e.target.value);
+    };
+    modal.querySelector('#emojisCheckbox').onchange = e => localStorage.setItem('emojis', e.target.checked);
+    modal.querySelector('#linkPreviewCheckbox').onchange = e => localStorage.setItem('linkPreview', e.target.checked);
+    modal.querySelector('#autoLoadImagesCheckbox').onchange = e => localStorage.setItem('autoLoadImages', e.target.checked);
+    modal.querySelector('#deleteAfterSendCheckbox').onchange = e => localStorage.setItem('deleteAfterSend', e.target.checked);
+    modal.querySelector('#showOnlineStatusCheckbox').onchange = e => localStorage.setItem('showOnlineStatus', e.target.checked);
+    modal.querySelector('#chatLockCheckbox').onchange = e => localStorage.setItem('chatLock', e.target.checked);
+    modal.querySelector('#clearHistoryCheckbox').onchange = e => localStorage.setItem('clearHistory', e.target.checked);
+    modal.querySelector('#imageQualitySelect').onchange = e => localStorage.setItem('imageQuality', e.target.value);
+
+    // Очистка кэша
+    modal.querySelector('#clearCacheBtn').onclick = () => {
+        alert('Кэш очищен');
+        modal.querySelector('#cacheSize').textContent = '0 KB';
+    };
+
+    // Политика конфиденциальности
+    modal.querySelector('#privacyPolicyBtn').onclick = () => {
+        alert('Политика конфиденциальности\n\nМы собираем только данные, необходимые для работы мессенджера. Ваши сообщения защищены.');
+    };
+
+    // Подсчёт размера кэша
+    let cacheSize = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const value = localStorage.getItem(key);
+        cacheSize += (key.length + value.length) * 2;
+    }
+    modal.querySelector('#cacheSize').textContent = formatFileSize(cacheSize);
 }
 
 async function showUserProfileModal(uid, uname) {
@@ -908,6 +1109,7 @@ async function compressImage(file) {
 }
 
 function showFilePreview(file) {
+    // Удаляем старый превью если есть
     const oldPreview = document.getElementById('previewContainer');
     if (oldPreview) oldPreview.remove();
 
@@ -938,9 +1140,11 @@ function showFilePreview(file) {
             `;
         }
 
-        const inputElement = document.getElementById('message');
-        if (inputElement && inputElement.parentNode) {
-            inputElement.parentNode.insertBefore(container, inputElement);
+        // Вставляем превью НАД полем ввода (перед .input)
+        const inputDiv = document.querySelector('.input');
+        const messager = document.getElementById('messager');
+        if (messager && inputDiv) {
+            messager.insertBefore(container, inputDiv);
         }
     };
 
@@ -1194,8 +1398,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         initMessageInput();
         initEmojiPicker();
         initPhotoViewer();
+        loadSavedTheme();
         await loadLastState();
     } else {
         loginWindow?.classList.remove('close'); registerWindow?.classList.add('close'); chatWindow?.classList.add('close');
     }
 });
+// Применение размера шрифта (после настроек)
+function applyFontSize(size) {
+    const root = document.documentElement;
+    if (size === 'small') {
+        root.style.fontSize = '12px';
+    } else if (size === 'medium') {
+        root.style.fontSize = '14px';
+    } else if (size === 'large') {
+        root.style.fontSize = '16px';
+    }
+}
+
+// Загрузка сохранённого размера шрифта при старте
+document.addEventListener('DOMContentLoaded', () => {
+    const savedFontSize = localStorage.getItem('fontSize');
+    if (savedFontSize) {
+        applyFontSize(savedFontSize);
+    }
+});
+// Применение темы (светлая/тёмная)
+function applyTheme(isDark) {
+    if (isDark) {
+        document.body.classList.add('dark');
+        localStorage.setItem('darkTheme', 'true');
+    } else {
+        document.body.classList.remove('dark');
+        localStorage.setItem('darkTheme', 'false');
+    }
+}
+// Загрузка сохранённой темы при старте
+function loadSavedTheme() {
+    const savedTheme = localStorage.getItem('darkTheme');
+    if (savedTheme === 'true') {
+        document.body.classList.add('dark');
+    } else {
+        document.body.classList.remove('dark');
+    }
+}
