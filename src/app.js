@@ -1122,7 +1122,7 @@ function showFilePreview(file) {
     const updatePreview = (imageSrc) => {
         if (isImage && imageSrc) {
             container.innerHTML = `
-                <img src="${imageSrc}" class="preview-image">
+                <img src="${imageSrc}" class="preview-image" alt="">
                 <div class="preview-info">
                     <span class="preview-name">${escapeHtml(file.name)}</span>
                     <span class="preview-size">${fileSize}</span>
@@ -1237,29 +1237,64 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
     }
 
     if (attachment && attachment.url) {
-        const isImage = attachment.type?.startsWith('image/');
-        const maxNameLength = window.innerWidth <= 480 ? 20 : 35;
-        const shortName = truncateFileName(attachment.name, maxNameLength);
+        const fileType = attachment.type || '';
+        const fileName = attachment.name || 'file';
+        const isImage = fileType.startsWith('image/');
+        const isVideo = fileType.startsWith('video/');
+        const isAudio = fileType.startsWith('audio/');
 
-        console.log('📸 Отображение вложения:', {
-            isImage,
-            url: attachment.url,
-            name: attachment.name,
-            shortName: shortName
-        });
+        const maxNameLength = window.innerWidth <= 480 ? 20 : 35;
+        const shortName = truncateFileName(fileName, maxNameLength);
+
+        console.log('📸 Отображение вложения:', { isImage, isVideo, isAudio, url: attachment.url, name: fileName });
+
+        // Кнопка скачивания для всех типов файлов
+        const downloadBtn = `<button class="file-download-btn" onclick="event.stopPropagation(); downloadFile('${attachment.url}', '${escapeHtml(fileName)}')"><ion-icon name="download-outline"></ion-icon></button>`;
 
         if (isImage) {
-            innerHTML += `<div class="message-attachment" onclick="openPhotoViewer('${attachment.url}')">
-                <img src="${attachment.url}" alt="${escapeHtml(attachment.name)}" loading="lazy">
+            // Изображение + кнопка скачивания
+            innerHTML += `<div class="message-attachment">
+                <img src="${attachment.url}" alt="${escapeHtml(fileName)}" loading="lazy" onclick="openPhotoViewer('${attachment.url}')">
+                ${downloadBtn}
+            </div>`;
+        } else if (isVideo) {
+            // Видео с плеером + кнопка скачивания
+            innerHTML += `<div class="message-attachment video-attachment">
+                <video controls preload="metadata" class="video-player">
+                    <source src="${attachment.url}" type="${fileType}">
+                    Ваш браузер не поддерживает видео
+                </video>
+                <div class="file-info">
+                    <div class="file-name">🎬 ${escapeHtml(shortName)}</div>
+                    <div class="file-size">${formatFileSize(attachment.size)}</div>
+                    ${downloadBtn}
+                </div>
+            </div>`;
+        } else if (isAudio) {
+            // Аудио с плеером + кнопка скачивания
+            innerHTML += `<div class="message-attachment audio-attachment">
+                <div class="audio-player-wrapper">
+                    <audio controls preload="metadata" class="audio-player">
+                        <source src="${attachment.url}" type="${fileType}">
+                        Ваш браузер не поддерживает аудио
+                    </audio>
+                </div>
+                <div class="file-info">
+                    <div class="file-name">🎵 ${escapeHtml(shortName)}</div>
+                    <div class="file-size">${formatFileSize(attachment.size)}</div>
+                    ${downloadBtn}
+                </div>
             </div>`;
         } else {
+            // Другие файлы
             const fileSize = formatFileSize(attachment.size);
-            innerHTML += `<div class="message-attachment" onclick="window.open('${attachment.url}', '_blank')">
+            innerHTML += `<div class="message-attachment">
                 <div class="file-icon"><ion-icon name="document-outline"></ion-icon></div>
                 <div class="file-info">
                     <div class="file-name">${escapeHtml(shortName)}</div>
                     <div class="file-size">${fileSize}</div>
                 </div>
+                ${downloadBtn}
             </div>`;
         }
     }
@@ -1440,5 +1475,38 @@ function loadSavedTheme() {
         document.body.classList.add('dark');
     } else {
         document.body.classList.remove('dark');
+    }
+}
+
+// Скачивание файла
+async function downloadFile(url, filename) {
+    try {
+        // Показываем уведомление о начале загрузки
+        console.log(`📥 Начинаем загрузку: ${filename}`);
+
+        // Загружаем файл через fetch
+        const response = await fetch(url);
+        const blob = await response.blob();
+
+        // Создаём ссылку на blob
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+
+        document.body.appendChild(link);
+        link.click();
+
+        // Очищаем
+        setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+
+        console.log(`✅ Файл скачан: ${filename}`);
+    } catch (error) {
+        console.error('Ошибка скачивания:', error);
+        // Если не получилось - открываем в новой вкладке
+        window.open(url, '_blank');
     }
 }

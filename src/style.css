@@ -472,7 +472,7 @@ body {
     background: var(--gray-light);
     color: var(--black);
     align-self: flex-start;
-    border-bottom-left-radius: 4px;
+    border-radius: 18px 18px 18px 4px;
 }
 
 /* Системные сообщения */
@@ -555,59 +555,53 @@ body {
 }
 
 /* ----- ВЛОЖЕНИЯ В СООБЩЕНИЯХ ----- */
+/* Вложение в сообщении */
 .message-attachment {
     margin-top: 8px;
-    padding: 6px 10px;
-    background: rgba(0, 0, 0, 0.08);
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 12px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    max-width: 100%;
-    overflow: hidden;
-    transition: var(--transition);
-}
-
-.message-attachment:hover {
-    background: rgba(0, 0, 0, 0.12);
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .message-attachment img {
-    max-width: 150px;
-    max-height: 120px;
-    border-radius: 10px;
-    object-fit: cover;
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.message-attachment img:hover {
+    transform: scale(1.02);
 }
 
 .message-attachment .file-icon {
-    width: 36px;
-    height: 36px;
-    flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.message-container.other .message-attachment .file-icon {
-    background: rgba(0, 0, 0, 0.1);
-}
-
-.message-attachment .file-icon ion-icon {
-    width: 20px;
-    height: 20px;
+    background: #43ca00;
+    border-radius: 8px;
 }
 
 .message-attachment .file-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .message-attachment .file-name {
-    font-size: 12px;
     font-weight: 600;
+    font-size: 13px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -616,12 +610,47 @@ body {
 .message-attachment .file-size {
     font-size: 10px;
     opacity: 0.7;
+    white-space: nowrap;
 }
 
-.message-container.other .message-attachment {
-    background: rgba(0, 0, 0, 0.05);
+/* Для своих сообщений */
+.message-container .message-attachment .file-name,
+.message-container .message-attachment .file-size {
+    color: white;
 }
 
+/* Для чужих сообщений */
+.message-container.other .message-attachment .file-name,
+.message-container.other .message-attachment .file-size {
+    color: #1a1a1a;
+}
+
+/* Видео и аудио адаптация */
+.video-attachment,
+.audio-attachment {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.video-attachment .file-info,
+.audio-attachment .file-info {
+    width: 100%;
+}
+
+.video-player {
+    max-width: 300px;
+    max-height: 200px;
+    width: 100%;
+    border-radius: 12px;
+    background: #000;
+}
+
+.audio-player {
+    flex: 1;
+    min-width: 150px;
+    height: 36px;
+    border-radius: 20px;
+}
 /* ----- ПОЛЕ ВВОДА ----- */
 .chat .input {
     min-height: 62px;
@@ -810,6 +839,7 @@ body {
     color: #ff4444;
     cursor: pointer;
     font-size: 18px;
+    margin: 0;
     padding: 5px;
     border-radius: 50%;
     width: 28px;
@@ -1704,5 +1734,215 @@ input[type="checkbox"]:disabled + .toggle-slider {
 
     input[type="checkbox"]:checked + .toggle-slider:before {
         transform: translateX(18px);
+    }
+}
+/* =========================== ВИДЕО И АУДИО ПЛЕЕРЫ =========================== */
+
+/* Видео вложения */
+.video-attachment {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
+    background: transparent !important;
+    cursor: default !important;
+}
+
+.video-player {
+    max-width: 300px;
+    max-height: 200px;
+    width: 100%;
+    border-radius: 12px;
+    background: #000;
+}
+
+/* Аудио вложения */
+.audio-attachment {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    min-width: 250px;
+    max-width: 320px;
+    height: 160px;
+    cursor: default !important;
+}
+
+.audio-player-wrapper {
+    display: flex;
+    align-items: center;
+    flex-direction: column-reverse;
+    height: 100px;
+    gap: 12px;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.audio-player {
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    min-width: 150px;
+    height: 36px;
+    border-radius: 20px;
+}
+
+.audio-player-wrapper .file-info {
+    margin: 0;
+    padding: 0;
+    position: relative;
+    left: 0;
+    width: 100%;
+}
+
+.audio-player::-webkit-media-controls-panel {
+    background: #2a0a3a;
+}
+
+/* Для тёмной темы */
+body.dark .audio-player::-webkit-media-controls-panel {
+    background: #1a1a2e;
+}
+
+/* Свои сообщения - аудио */
+.message-container .audio-attachment {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Чужие сообщения - аудио */
+.message-container.other .audio-attachment {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Адаптация для телефонов */
+@media (max-width: 767px) {
+    .video-player {
+        max-width: 250px;
+        max-height: 160px;
+    }
+
+    .audio-attachment {
+        min-width: 220px;
+        max-width: 280px;
+        padding: 8px 12px;
+    }
+
+    .audio-player {
+        min-width: 120px;
+        width: 100%;
+        height: 32px;
+    }
+
+    .audio-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+    .audio-icon ion-icon {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .video-player {
+        max-width: 200px;
+        max-height: 130px;
+    }
+
+    .audio-attachment {
+        min-width: 200px;
+        max-width: 250px;
+    }
+
+    .audio-player {
+        min-width: 100px;
+    }
+}
+/* =========================== КНОПКА СКАЧИВАНИЯ =========================== */
+
+.file-download-btn {
+    background: rgba(67, 202, 0, 0.15);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    color: #43ca00;
+}
+
+.file-download-btn ion-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.file-download-btn:hover {
+    background: #43ca00;
+    color: white;
+    transform: scale(1.05);
+}
+
+.file-download-btn:active {
+    transform: scale(0.95);
+}
+
+/* Свои сообщения - кнопка скачивания */
+.message-container .file-download-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.message-container .file-download-btn:hover {
+    background: #43ca00;
+    color: white;
+}
+
+/* Чужие сообщения - кнопка скачивания */
+.message-container.other .file-download-btn {
+    background: rgba(67, 202, 0, 0.15);
+    color: #43ca00;
+}
+
+/* Стили для блока file-info (чтобы кнопка была справа) */
+.message-attachment .file-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.message-attachment .file-info .file-name,
+.message-attachment .file-info .file-size {
+    flex: 1;
+}
+
+/* Адаптация для телефонов */
+@media (max-width: 767px) {
+    .file-download-btn {
+        width: 28px;
+        height: 28px;
+    }
+
+    .file-download-btn ion-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .message-attachment .file-info {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .message-attachment .file-info .file-name {
+        width: 100%;
+        flex: auto;
     }
 }
