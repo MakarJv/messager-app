@@ -1,6 +1,14 @@
 {
+  "name": "messenger-app",
+  "version": "1.0.0",
+  "description": "Чат-приложение с push-уведомлениями",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.4",
-    "ws": "^8.20.1"
+    "web-push": "^3.6.6",
+    "ws": "^8.14.2"
   }
 }

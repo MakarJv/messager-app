@@ -1267,9 +1267,7 @@ body {
 .profile-avatar ion-icon {
     font-size: 80px;
     color: var(--primary);
-    background: var(--primary-light);
     border-radius: 50%;
-    padding: 16px;
 }
 
 .profile-field {
@@ -1908,6 +1906,7 @@ body.dark .audio-player::-webkit-media-controls-panel {
 .message-container.other .file-download-btn {
     background: rgba(67, 202, 0, 0.15);
     color: #43ca00;
+    width: 100%;
 }
 
 /* Стили для блока file-info (чтобы кнопка была справа) */
@@ -1944,5 +1943,315 @@ body.dark .audio-player::-webkit-media-controls-panel {
     .message-attachment .file-info .file-name {
         width: 100%;
         flex: auto;
+    }
+}
+/* Кнопка теста звука в настройках */
+.settings-test-sound-btn {
+    background: #3a2a5a;
+    border: none;
+    border-radius: 20px;
+    padding: 5px 12px;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: 10px;
+}
+
+.settings-test-sound-btn:hover {
+    background: #43ca00;
+    transform: scale(0.95);
+}
+/* =========================== ЭМОДЗИ-ПИКЕР =========================== */
+.input .emoji-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.input .emoji-btn:hover {
+    background: var(--gray-light);
+}
+
+.input .emoji-btn ion-icon {
+    width: 22px;
+    height: 22px;
+    color: var(--gray-text);
+}
+
+.emoji-picker {
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    background: var(--white);
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 12px;
+    z-index: 1000;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--gray-border);
+}
+
+.emoji-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.emoji-list span {
+    font-size: 24px;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 10px;
+    transition: transform 0.1s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.emoji-list span:hover {
+    transform: scale(1.2);
+    background: var(--gray-light);
+}
+
+/* Адаптация для телефонов */
+@media (max-width: 767px) {
+    .emoji-picker {
+        bottom: 80px;
+        left: -100px;
+        right: 8px;
+        max-height: 200px;
+        width: 350px;
+    }
+
+    .emoji-list span {
+        font-size: 28px;
+        padding: 4px;
+    }
+}
+
+/* Тёмная тема */
+body.dark .emoji-picker {
+    background: #2d2d2d;
+    border-color: #3a3a3a;
+}
+
+/* Позиционирование для input wrapper */
+.message-input-wrapper {
+    flex: 1;
+    position: relative;
+}
+/* Индикатор "печатает..." */
+.typing-indicator {
+    font-size: 11px;
+    font-weight: normal;
+    margin-left: 8px;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+/* =========================== АВАТАРЫ =========================== */
+
+/* Аватар в профиле */
+.profile-avatar {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.profile-avatar-img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #43ca00;
+}
+
+.profile-avatar .profile-change-avatar-btn {
+    position: absolute;
+    bottom: 0;
+    right: calc(50% - 50px);
+    background: #43ca00;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.profile-avatar .profile-change-avatar-btn ion-icon {
+    width: 18px;
+    height: 18px;
+    color: white;
+}
+
+.profile-change-avatar-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Аватары в списке чатов и пользователей */
+.chat-avatar img,
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Для телефонов */
+@media (max-width: 767px) {
+    .profile-avatar-img {
+        width: 80px;
+        height: 80px;
+    }
+
+    .profile-change-avatar-btn {
+        width: 28px;
+        height: 28px;
+        right: calc(50% - 40px);
+    }
+}
+/* Аватары в списках */
+.chat-avatar,
+.user-avatar,
+.sidebar-chat-avatar,
+.sidebar-user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.chat-avatar img,
+.user-avatar img,
+.sidebar-chat-avatar img,
+.sidebar-user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Аватар в шапке чата */
+.profile-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.profile-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Для телефонов */
+@media (max-width: 767px) {
+    .chat-avatar,
+    .user-avatar,
+    .sidebar-chat-avatar,
+    .sidebar-user-avatar {
+        width: 40px;
+        height: 40px;
+    }
+}
+/* Контейнер для кнопок аватара */
+.profile-avatar {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.profile-avatar-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.profile-change-avatar-btn,
+.profile-delete-avatar-btn {
+    background: #3a2a5a;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.profile-change-avatar-btn:hover,
+.profile-delete-avatar-btn:hover {
+    transform: scale(1.05);
+}
+
+.profile-change-avatar-btn {
+    background: #43ca00;
+}
+
+.profile-delete-avatar-btn {
+    background: #ff4444;
+}
+
+.profile-change-avatar-btn ion-icon,
+.profile-delete-avatar-btn ion-icon {
+    width: 18px;
+    height: 18px;
+    color: white;
+}
+
+/* Аватар в модальном окне */
+.profile-avatar-img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #43ca00;
+}
+
+/* Для телефонов */
+@media (max-width: 767px) {
+    .profile-avatar-img {
+        width: 80px;
+        height: 80px;
+    }
+
+    .profile-change-avatar-btn,
+    .profile-delete-avatar-btn {
+        width: 32px;
+        height: 32px;
     }
 }

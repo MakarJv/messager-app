@@ -21,9 +21,6 @@ const chatWindow = document.querySelector('.chat');
 let messageInput = document.getElementById('message');
 const messagesContainer = document.getElementById('messageText');
 const sendButton = document.getElementById('sendBtn');
-const menuBtn = document.querySelector('#menuBtn');
-const closeBtn = document.querySelector('#closeBtn');
-const menuList = document.querySelector('.menuList');
 const exitBtn = document.querySelector('.exitBtn');
 const loginUsername = document.getElementById('loginUsername');
 const loginPassword = document.getElementById('loginPassword');
@@ -32,14 +29,15 @@ const regEmail = document.getElementById('regEmail');
 const regPassword = document.getElementById('regPassword');
 const sidebar = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
-const sidebarContent = document.getElementById('sidebarContent');
-const menuBtns = document.querySelectorAll('.menu-btn, #menuBtn');
 const profileMenuItem = document.getElementById('profileMenuItem');
 const settingsMenuItem = document.getElementById('settingsMenuItem');
 const exitMenuItem = document.getElementById('exitMenuItem');
 const profileDesktopBtn = document.getElementById('profileDesktopBtn');
 const settingsDesktopBtn = document.getElementById('settingsDesktopBtn');
 const exitDesktopBtn = document.getElementById('exitDesktopBtn');
+
+// VAPID ключи (Public key - безопасно хранить в клиенте, Private key - только на сервере!)
+const VAPID_PUBLIC_KEY = 'BC9M1hyw0UrO65wjYz-VV3Zy_GzCgH1J1Dp94pOboqRLLC4jM5LocV1CfZDF-FzzNlMtUmpkG2-ESDwIwzHGAv0';
 
 // =========================== 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===========================
 let currentChatUser = null, currentChatId = null, allUsers = [], userChats = [];
@@ -49,51 +47,68 @@ let statusUpdateInterval = null, currentUserStatus = 'online', touchStartXGlobal
 let pendingFile = null;
 let isSending = false;
 let preventAutoSend = false;
-let originalTitle = document.title;  // ← ДОБАВИТЬ
-let notificationCount = 0;           // ← ДОБАВИТЬ
-let notificationSound = null;        // ← ДОБАВИТЬ
-let notificationsEnabled = false;    // ← ДОБАВИТЬ
+let originalTitle = document.title;
+let notificationCount = 0;
+let notificationSound = null;
+let notificationsEnabled = false;
+let soundEnabled = true;
+let lastNotificationTime = 0;
+let typingTimeout = null;
+let isTypingCurrently = false;
+let typingSubscription = null;
+let swRegistration = null; // Для Service Worker
 
 // =========================== УВЕДОМЛЕНИЯ ===========================
 
-// Инициализация звука
 function initNotificationSound() {
     try {
-        // Создаём короткий звук через Web Audio API (без внешних файлов)
-        notificationSound = new Audio('data:audio/wav;base64,U3RlYWx0aCBzb3VuZA==');
-        // Или используем встроенный beep через Web Audio
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioContext) {
-            notificationSound = {
-                play: () => {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioContext = new AudioContext();
+
+        notificationSound = {
+            play: () => {
+                const now = Date.now();
+                if (now - lastNotificationTime < 2000) return;
+                lastNotificationTime = now;
+                if (!soundEnabled) return;
+
+                audioContext.resume().then(() => {
                     const osc = audioContext.createOscillator();
                     const gain = audioContext.createGain();
                     osc.connect(gain);
                     gain.connect(audioContext.destination);
                     osc.frequency.value = 880;
-                    gain.gain.value = 0.3;
+                    gain.gain.value = 0.15;
                     osc.start();
-                    gain.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
-                    osc.stop(audioContext.currentTime + 0.5);
-                    audioContext.resume();
-                }
-            };
-        }
-    } catch(e) { console.log('Звук не поддерживается'); }
+                    gain.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
+                    osc.stop(audioContext.currentTime + 0.3);
+
+                    setTimeout(() => {
+                        const osc2 = audioContext.createOscillator();
+                        const gain2 = audioContext.createGain();
+                        osc2.connect(gain2);
+                        gain2.connect(audioContext.destination);
+                        osc2.frequency.value = 660;
+                        gain2.gain.value = 0.1;
+                        osc2.start();
+                        gain2.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.2);
+                        osc2.stop(audioContext.currentTime + 0.2);
+                    }, 150);
+                }).catch(e => console.log('Audio error:', e));
+            }
+        };
+    } catch(e) {
+        console.log('Звук не поддерживается:', e);
+        notificationSound = { play: () => {} };
+    }
 }
 
-// Запрос разрешения на уведомления
 async function requestNotificationPermission() {
-    if (!('Notification' in window)) {
-        console.log('Браузер не поддерживает уведомления');
-        return false;
-    }
-
+    if (!('Notification' in window)) return false;
     if (Notification.permission === 'granted') {
         notificationsEnabled = true;
         return true;
     }
-
     if (Notification.permission !== 'denied') {
         const permission = await Notification.requestPermission();
         notificationsEnabled = permission === 'granted';
@@ -102,37 +117,58 @@ async function requestNotificationPermission() {
     return false;
 }
 
-// Отправка уведомления
-function showNotification(title, body, tag = 'message') {
-    // Если уведомления отключены в настройках
-    if (localStorage.getItem('notifications') === 'false') return;
+async function showNotification(title, body, tag = 'message', senderId = null) {
+    try {
+        if (localStorage.getItem('notifications') === 'false') return;
+        if (!document.hidden) return;
 
-    // Если страница активна, не показываем уведомление
-    if (!document.hidden) return;
+        if (senderId) {
+            const { data: { user } } = await window.sbClient.auth.getUser();
+            if (user && user.id === senderId) return;
+        }
 
-    if (notificationsEnabled && Notification.permission === 'granted') {
-        const notification = new Notification(title, {
-            body: body,
-            icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2343ca00"%3E%3Cpath d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/%3E%3C/svg%3E',
-            tag: tag,
-            silent: false
-        });
+        const now = Date.now();
+        if (now - lastNotificationTime < 3000 && notificationCount > 0) {
+            notificationCount++;
+            updateTitleNotification();
+            return;
+        }
 
-        notification.onclick = () => {
-            window.focus();
-            notification.close();
-        };
+        lastNotificationTime = now;
 
-        setTimeout(() => notification.close(), 5000);
-    }
+        if (localStorage.getItem('sound') !== 'false' && notificationSound) {
+            notificationSound.play();
+        }
 
-    // Проигрываем звук (если включён)
-    if (localStorage.getItem('sound') !== 'false' && notificationSound) {
-        notificationSound.play().catch(e => console.log('Sound error:', e));
+        if (notificationsEnabled && Notification.permission === 'granted') {
+            const notification = new Notification(title, {
+                body: body,
+                icon: '/favicon.ico',
+                badge: '/favicon.ico',
+                tag: tag,
+                silent: false,
+                vibrate: [200, 100, 200],
+                requireInteraction: false
+            });
+
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+                if (senderId && window.openChatWithUser) {
+                    openChatWithUser(senderId, title);
+                }
+            };
+
+            setTimeout(() => notification.close(), 8000);
+        }
+
+        notificationCount++;
+        updateTitleNotification();
+    } catch (error) {
+        console.error('Ошибка в showNotification:', error);
     }
 }
 
-// Обновление заголовка страницы (мигающий)
 function updateTitleNotification() {
     if (document.hidden && notificationCount > 0) {
         document.title = `📩 (${notificationCount}) ${originalTitle}`;
@@ -142,21 +178,11 @@ function updateTitleNotification() {
     }
 }
 
-// Добавление счётчика уведомлений
-function addNotification() {
-    if (document.hidden) {
-        notificationCount++;
-        updateTitleNotification();
-    }
-}
-
-// Сброс уведомлений при фокусе на окно
 window.addEventListener('focus', () => {
     notificationCount = 0;
     updateTitleNotification();
 });
 
-// Проверка видимости страницы
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
         notificationCount = 0;
@@ -169,10 +195,12 @@ function getShortTime() {
     const now = new Date();
     return `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 }
+
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
 }
+
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -181,22 +209,15 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Обрезка длинных имён файлов
 function truncateFileName(filename, maxLength = 30) {
     if (!filename) return '';
     if (filename.length <= maxLength) return filename;
-
     const lastDot = filename.lastIndexOf('.');
-    if (lastDot === -1) {
-        return filename.slice(0, maxLength - 3) + '...';
-    }
-
+    if (lastDot === -1) return filename.slice(0, maxLength - 3) + '...';
     const ext = filename.slice(lastDot);
     const name = filename.slice(0, lastDot);
     const availableLength = maxLength - ext.length - 3;
-
     if (availableLength <= 0) return '...' + ext;
-
     return name.slice(0, availableLength) + '...' + ext;
 }
 
@@ -215,10 +236,46 @@ async function registerUser() {
         loginWindow.classList.add('close'); registerWindow.classList.add('close'); chatWindow.classList.remove('close');
         regUsername.value = regEmail.value = regPassword.value = '';
         await loadUsers(); await loadUserChats();
+        await registerServiceWorker();
         console.log('Добро пожаловать,', username);
     } else {
         alert('Регистрация успешна! Подтвердите email и войдите.');
         loginWindow.classList.remove('close'); registerWindow.classList.add('close');
+    }
+}
+
+async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return false;
+
+    try {
+        // Проверяем существующую регистрацию
+        const registrations = await navigator.serviceWorker.getRegistrations();
+
+        for (const registration of registrations) {
+            if (registration.active && registration.active.scriptURL.includes('sw.js')) {
+                swRegistration = registration;
+                console.log('✅ Service Worker уже зарегистрирован');
+
+                // Проверяем существующую подписку
+                const subscription = await swRegistration.pushManager.getSubscription();
+                if (subscription) {
+                    console.log('✅ Существующая push-подписка найдена');
+                    await saveSubscriptionToServer(subscription);
+                }
+
+                return true;
+            }
+        }
+
+        // Регистрируем новый Service Worker
+        swRegistration = await navigator.serviceWorker.register('/sw.js');
+        console.log('✅ Новый Service Worker зарегистрирован');
+        await navigator.serviceWorker.ready;
+
+        return true;
+    } catch (error) {
+        console.error('❌ Ошибка регистрации SW:', error);
+        return false;
     }
 }
 
@@ -236,17 +293,44 @@ async function enterChat() {
         loginUsername.value = loginPassword.value = '';
         await loadUsers(); await loadUserChats();
         startStatusTracking(); subscribeToStatus();
-
-        // ← ДОБАВИТЬ ЗАПРОС УВЕДОМЛЕНИЙ
         initNotificationSound();
         requestNotificationPermission();
+        await registerServiceWorker();
+    }
+
+    if (!localStorage.getItem('notificationPermissionAsked')) {
+        setTimeout(async () => {
+            const granted = await requestNotificationPermission();
+            if (granted) {
+                console.log('✅ Уведомления разрешены');
+                setTimeout(() => showNotification('Мессенджер', 'Уведомления настроены!', 'welcome'), 1000);
+            }
+            localStorage.setItem('notificationPermissionAsked', 'true');
+        }, 2000);
+    }
+    // Восстанавливаем push-подписку после входа
+    await registerServiceWorker();
+    const savedPushEnabled = localStorage.getItem('pushEnabled') === 'true';
+
+    if (savedPushEnabled) {
+        const isSubscribed = await checkPushSubscription();
+        if (!isSubscribed) {
+            console.log('🔄 Восстанавливаем push-подписку...');
+            await subscribeToPush();
+        } else {
+            // Обновляем подписку на сервере
+            const subscription = await swRegistration.pushManager.getSubscription();
+            if (subscription) {
+                await saveSubscriptionToServer(subscription);
+            }
+        }
     }
 }
 
 async function logout() {
     await window.sbClient.auth.signOut(); stopStatusTracking();
     loginWindow.classList.remove('close'); registerWindow.classList.add('close'); chatWindow.classList.add('close');
-    sidebar?.classList.remove('open'); sidebarOverlay?.classList.remove('active'); menuList?.classList.add('close');
+    sidebar?.classList.remove('open'); sidebarOverlay?.classList.remove('active');
     localStorage.removeItem('currentUsername');
     currentChatUser = null; currentChatId = null;
     if (messagesContainer) messagesContainer.innerHTML = '';
@@ -338,6 +422,7 @@ async function getOrCreateChatId(u1, u2) {
 async function openChatWithUser(userId, userName, existingChatId = null) {
     const { data: { user: cur } } = await window.sbClient.auth.getUser();
     if (!cur) return;
+    resetTypingStatus();
     currentChatUser = { id: userId, name: userName };
     const title = document.getElementById('currentChatTitle');
     const status = await getUserStatus(userId);
@@ -355,34 +440,16 @@ async function loadMessages() {
     if (!currentChatId) return;
     const { data: { user: cur } } = await window.sbClient.auth.getUser();
     if (!cur) return;
-
-    const { data: messages, error: msgError } = await window.sbClient
-        .from('messages')
-        .select('*')
-        .eq('chat_id', currentChatId)
-        .order('created_at', { ascending: true });
-
+    const { data: messages, error: msgError } = await window.sbClient.from('messages').select('*').eq('chat_id', currentChatId).order('created_at', { ascending: true });
     if (msgError) { console.error(msgError); return; }
     if (messagesContainer) messagesContainer.innerHTML = '';
-
     if (messages?.length) {
         for (const msg of messages) {
-            const { data: attachments } = await window.sbClient
-                .from('attachments')
-                .select('*')
-                .eq('message_id', msg.id)
-                .maybeSingle();
-
+            const { data: attachments } = await window.sbClient.from('attachments').select('*').eq('message_id', msg.id).maybeSingle();
             const isOwn = msg.sender_id === cur.id;
-
             let attachment = null;
             if (attachments) {
-                attachment = {
-                    url: attachments.file_url || attachments.title_id,
-                    name: attachments.file_name,
-                    size: attachments.file_size,
-                    type: attachments.file_type
-                };
+                attachment = { url: attachments.file_url || attachments.title_id, name: attachments.file_name, size: attachments.file_size, type: attachments.file_type };
             }
             displayMessageWithAttachment(msg.text, isOwn, msg.created_at, msg.id, attachment);
         }
@@ -393,10 +460,6 @@ async function loadMessages() {
         messagesContainer?.appendChild(welcome);
     }
     setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 100);
-}
-
-function displayMessage(text, isOwn, createdAt, msgId) {
-    displayMessageWithAttachment(text, isOwn, createdAt, msgId, null);
 }
 
 // =========================== 7. ОТПРАВКА И УДАЛЕНИЕ ===========================
@@ -426,9 +489,7 @@ function subscribeToMessages() {
             if (!cur) return;
             const isOwn = msg.sender_id === cur.id;
 
-            // ← ДОБАВИТЬ УВЕДОМЛЕНИЕ ДЛЯ ЧУЖИХ СООБЩЕНИЙ
             if (!isOwn) {
-                // Получаем имя отправителя
                 const { data: profile } = await window.sbClient
                     .from('profiles')
                     .select('username')
@@ -438,10 +499,32 @@ function subscribeToMessages() {
                 const senderName = profile?.username || 'Пользователь';
                 const messageText = msg.text?.substring(0, 50) || '📎 Файл';
 
-                // Показываем уведомление
-                showNotification(senderName, messageText, `chat_${msg.sender_id}`);
+                // Обычное уведомление (когда страница открыта)
+                await showNotification(senderName, messageText, `chat_${msg.sender_id}`, msg.sender_id);
 
-                // Добавляем счётчик, если чат не открыт
+                // ========== ДОБАВЛЯЕМ ОТПРАВКУ PUSH НА СЕРВЕР ==========
+                // Отправляем push-уведомление через наш сервер
+                try {
+                    const { data: { user: currentUser } } = await window.sbClient.auth.getUser();
+
+                    const pushResponse = await fetch('/api/send-push', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            toUserId: cur.id,  // Кому отправляем (текущий пользователь)
+                            title: senderName,
+                            body: messageText,
+                            icon: '/favicon.ico'
+                        })
+                    });
+
+                    const pushResult = await pushResponse.json();
+                    console.log('📨 Push отправлен через сервер:', pushResult);
+                } catch (pushError) {
+                    console.error('❌ Ошибка отправки push:', pushError);
+                }
+                // =====================================================
+
                 if (msg.chat_id !== currentChatId) {
                     addNotification();
                 }
@@ -507,7 +590,7 @@ function subscribeToStatus() {
             const up = p.new;
             if (currentChatUser?.id === up.id) {
                 const title = document.getElementById('currentChatTitle');
-                if (title) title.innerHTML = `${currentChatUser.name} <span class="user-status-indicator ${up.status}">${up.status === 'online' ? '●' : '○'}</span>`;
+                if (title) title.innerHTML = `${currentChatUser.name} <span class="user-status-indicator ${up.status}">${up.status === 'online' ? '' : ''}</span>`;
             }
             const userEl = document.querySelector(`.user-item[data-user-id="${up.id}"] .user-status`);
             if (userEl) userEl.className = `user-status ${up.status === 'online' ? 'online' : 'offline'}`;
@@ -526,12 +609,14 @@ async function updateUserStatus(status) {
     currentUserStatus = status;
     await window.sbClient.from('user_status').upsert({ id: user.id, status, last_seen: new Date().toISOString(), updated_at: new Date().toISOString() });
 }
+
 async function getUserStatus(uid) {
     const { data } = await window.sbClient.from('user_status').select('status, last_seen').eq('id', uid).single();
     if (!data) return 'offline';
     if (data.status === 'online' && data.last_seen && (new Date() - new Date(data.last_seen)) / 1000 / 60 > 2) return 'offline';
     return data.status || 'offline';
 }
+
 function startStatusTracking() {
     updateUserStatus('online');
     if (statusUpdateInterval) clearInterval(statusUpdateInterval);
@@ -539,6 +624,7 @@ function startStatusTracking() {
     window.addEventListener('beforeunload', () => updateUserStatus('offline'));
     document.addEventListener('visibilitychange', () => updateUserStatus(document.hidden ? 'offline' : 'online'));
 }
+
 function stopStatusTracking() {
     if (statusUpdateInterval) { clearInterval(statusUpdateInterval); statusUpdateInterval = null; }
     updateUserStatus('offline');
@@ -560,6 +646,7 @@ function switchTab(tab) {
     }
     saveCurrentState();
 }
+
 function setupSearch() {
     const input = document.getElementById('searchInput');
     if (!input) return;
@@ -584,6 +671,7 @@ function setupMobileTabs() {
         else { chats?.classList.add('hidden'); users?.classList.remove('hidden'); loadMobileUsers(); }
     }));
 }
+
 function setupMobileSearch() {
     const input = document.getElementById('sidebarSearchInput');
     if (!input) return;
@@ -689,7 +777,7 @@ async function showProfileModal() {
     };
 }
 
-function showSettingsModal() {
+async function showSettingsModal() {
     const modal = document.createElement('div');
     modal.className = 'custom-modal';
     modal.innerHTML = `
@@ -700,11 +788,10 @@ function showSettingsModal() {
                 <button class="modal-close-btn"><ion-icon name="close-outline"></ion-icon></button>
             </div>
             <div class="custom-modal-body">
-                <!-- Уведомления -->
                 <div class="settings-section">
                     <div class="settings-section-title">🔔 Уведомления</div>
                     <div class="settings-item">
-                        <label>Push-уведомления</label>
+                        <label>Уведомления</label>
                         <label class="toggle-switch">
                             <input type="checkbox" id="notificationsCheckbox" ${localStorage.getItem('notifications') !== 'false' ? 'checked' : ''}>
                             <span class="toggle-slider"></span>
@@ -724,9 +811,17 @@ function showSettingsModal() {
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">📱 Push-уведомления</div>
+                        <div class="settings-item">
+                            <label>Push-уведомления</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pushNotificationsCheckbox">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
-
-                <!-- Внешний вид -->
                 <div class="settings-section">
                     <div class="settings-section-title">🎨 Внешний вид</div>
                     <div class="settings-item">
@@ -744,13 +839,6 @@ function showSettingsModal() {
                         </label>
                     </div>
                     <div class="settings-item">
-                        <label>Показывать время</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="showTimeCheckbox" ${localStorage.getItem('showTime') !== 'false' ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-item">
                         <label>Размер шрифта</label>
                         <select id="fontSizeSelect">
                             <option value="small">Маленький</option>
@@ -759,24 +847,8 @@ function showSettingsModal() {
                         </select>
                     </div>
                 </div>
-
-                <!-- Чаты -->
                 <div class="settings-section">
                     <div class="settings-section-title">💬 Чаты</div>
-                    <div class="settings-item">
-                        <label>Смайлики в сообщениях</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="emojisCheckbox" ${localStorage.getItem('emojis') !== 'false' ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-item">
-                        <label>Предпросмотр ссылок</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="linkPreviewCheckbox" ${localStorage.getItem('linkPreview') !== 'false' ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
                     <div class="settings-item">
                         <label>Автозагрузка фото</label>
                         <label class="toggle-switch">
@@ -784,129 +856,92 @@ function showSettingsModal() {
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="settings-item">
-                        <label>Удалять фото после отправки</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="deleteAfterSendCheckbox" ${localStorage.getItem('deleteAfterSend') === 'true' ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Конфиденциальность -->
-                <div class="settings-section">
-                    <div class="settings-section-title">🔒 Конфиденциальность</div>
-                    <div class="settings-item">
-                        <label>Показывать статус "онлайн"</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="showOnlineStatusCheckbox" ${localStorage.getItem('showOnlineStatus') !== 'false' ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-item">
-                        <label>Блокировка чата</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="chatLockCheckbox" ${localStorage.getItem('chatLock') === 'true' ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-item">
-                        <label>Очищать историю при выходе</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="clearHistoryCheckbox" ${localStorage.getItem('clearHistory') === 'true' ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Данные и хранилище -->
-                <div class="settings-section">
-                    <div class="settings-section-title">📱 Данные и хранилище</div>
-                    <div class="settings-item">
-                        <label>Качество фото при отправке</label>
-                        <select id="imageQualitySelect">
-                            <option value="high" ${localStorage.getItem('imageQuality') === 'high' ? 'selected' : ''}>Высокое</option>
-                            <option value="medium" ${localStorage.getItem('imageQuality') === 'medium' || !localStorage.getItem('imageQuality') ? 'selected' : ''}>Среднее</option>
-                            <option value="low" ${localStorage.getItem('imageQuality') === 'low' ? 'selected' : ''}>Низкое (экономия трафика)</option>
-                        </select>
-                    </div>
-                    <div class="settings-item">
-                        <label>Очистить кэш</label>
-                        <button id="clearCacheBtn" class="settings-btn">Очистить</button>
-                    </div>
-                    <div class="settings-item">
-                        <label>Размер кэша</label>
-                        <span id="cacheSize" class="settings-value">0 KB</span>
-                    </div>
-                </div>
-
-                <!-- О программе -->
-                <div class="settings-section">
-                    <div class="settings-section-title">ℹ️ О программе</div>
-                    <div class="settings-item">
-                        <label>Версия</label>
-                        <span class="settings-value">1.0.0</span>
-                    </div>
-                    <div class="settings-item">
-                        <label>Разработчик</label>
-                        <span class="settings-value">Messenger App</span>
-                    </div>
-                    <div class="settings-item">
-                        <label>Политика конфиденциальности</label>
-                        <button id="privacyPolicyBtn" class="settings-link">Подробнее</button>
-                    </div>
                 </div>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
 
-    // Закрытие модального окна
     modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
     modal.onclick = e => { if (e.target === modal) modal.remove(); };
 
-    // Обработчики для переключателей
     modal.querySelector('#notificationsCheckbox').onchange = e => localStorage.setItem('notifications', e.target.checked);
-    modal.querySelector('#soundCheckbox').onchange = e => localStorage.setItem('sound', e.target.checked);
+
+    const soundCheckbox = modal.querySelector('#soundCheckbox');
+    if (soundCheckbox) {
+        const testSoundBtn = document.createElement('button');
+        testSoundBtn.textContent = '🔊 Тест';
+        testSoundBtn.className = 'settings-test-sound-btn';
+        testSoundBtn.style.marginLeft = '10px';
+        testSoundBtn.style.padding = '4px 8px';
+        testSoundBtn.style.borderRadius = '6px';
+        testSoundBtn.style.border = 'none';
+        testSoundBtn.style.cursor = 'pointer';
+        testSoundBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (notificationSound) {
+                notificationSound.play();
+            } else {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                gain.gain.value = 0.1;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.2);
+                osc.stop(ctx.currentTime + 0.2);
+            }
+        };
+        const soundItem = soundCheckbox.closest('.settings-item');
+        if (soundItem) soundItem.appendChild(testSoundBtn);
+        soundCheckbox.onchange = (e) => {
+            soundEnabled = e.target.checked;
+            localStorage.setItem('sound', e.target.checked);
+        };
+    }
+
     modal.querySelector('#vibrationCheckbox').onchange = e => localStorage.setItem('vibration', e.target.checked);
     modal.querySelector('#darkThemeCheckbox').onchange = e => {
         localStorage.setItem('darkTheme', e.target.checked);
         document.body.classList.toggle('dark');
     };
     modal.querySelector('#compactModeCheckbox').onchange = e => localStorage.setItem('compactMode', e.target.checked);
-    modal.querySelector('#showTimeCheckbox').onchange = e => localStorage.setItem('showTime', e.target.checked);
     modal.querySelector('#fontSizeSelect').onchange = e => {
         localStorage.setItem('fontSize', e.target.value);
         applyFontSize(e.target.value);
     };
-    modal.querySelector('#emojisCheckbox').onchange = e => localStorage.setItem('emojis', e.target.checked);
-    modal.querySelector('#linkPreviewCheckbox').onchange = e => localStorage.setItem('linkPreview', e.target.checked);
     modal.querySelector('#autoLoadImagesCheckbox').onchange = e => localStorage.setItem('autoLoadImages', e.target.checked);
-    modal.querySelector('#deleteAfterSendCheckbox').onchange = e => localStorage.setItem('deleteAfterSend', e.target.checked);
-    modal.querySelector('#showOnlineStatusCheckbox').onchange = e => localStorage.setItem('showOnlineStatus', e.target.checked);
-    modal.querySelector('#chatLockCheckbox').onchange = e => localStorage.setItem('chatLock', e.target.checked);
-    modal.querySelector('#clearHistoryCheckbox').onchange = e => localStorage.setItem('clearHistory', e.target.checked);
-    modal.querySelector('#imageQualitySelect').onchange = e => localStorage.setItem('imageQuality', e.target.value);
 
-    // Очистка кэша
-    modal.querySelector('#clearCacheBtn').onclick = () => {
-        alert('Кэш очищен');
-        modal.querySelector('#cacheSize').textContent = '0 KB';
-    };
-
-    // Политика конфиденциальности
-    modal.querySelector('#privacyPolicyBtn').onclick = () => {
-        alert('Политика конфиденциальности\n\nМы собираем только данные, необходимые для работы мессенджера. Ваши сообщения защищены.');
-    };
-
-    // Подсчёт размера кэша
     let cacheSize = 0;
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         const value = localStorage.getItem(key);
         cacheSize += (key.length + value.length) * 2;
     }
-    modal.querySelector('#cacheSize').textContent = formatFileSize(cacheSize);
+    const cacheSizeEl = modal.querySelector('#cacheSize');
+    if (cacheSizeEl) cacheSizeEl.textContent = formatFileSize(cacheSize);
+
+    // Push-уведомления
+    const pushCheckbox = modal.querySelector('#pushNotificationsCheckbox');
+    if (pushCheckbox) {
+        // Инициализируем Service Worker если ещё нет
+        if (!swRegistration) await registerServiceWorker();
+
+        const isSubscribed = await checkPushSubscription();
+        pushCheckbox.checked = isSubscribed;
+
+        pushCheckbox.onchange = async (e) => {
+            if (e.target.checked) {
+                await subscribeToPush();
+            } else {
+                await unsubscribeFromPush();
+            }
+            pushCheckbox.checked = await checkPushSubscription();
+        };
+    }
 }
 
 async function showUserProfileModal(uid, uname) {
@@ -929,6 +964,7 @@ function saveCurrentState() {
     if (currentChatUser) localStorage.setItem('lastChatUser', JSON.stringify({ id: currentChatUser.id, name: currentChatUser.name }));
     localStorage.setItem('lastActiveTab', activeTab);
 }
+
 async function loadLastState() {
     const lastUser = localStorage.getItem('lastChatUser'), lastTab = localStorage.getItem('lastActiveTab');
     if (lastTab && (lastTab === 'chats' || lastTab === 'users')) {
@@ -1007,24 +1043,22 @@ function initEmojiPicker() {
 function initMessageInput() {
     let textarea = document.getElementById('message');
     if (!textarea) return;
-
     const newTextarea = textarea.cloneNode(true);
     textarea.parentNode.replaceChild(newTextarea, textarea);
     messageInput = newTextarea;
-
     newTextarea.addEventListener('input', () => {
         autoResizeTextarea();
         updateCharCounter();
+        if (currentChatId) sendTypingStatus();
     });
-
     newTextarea.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             e.stopPropagation();
+            resetTypingStatus();
             sendMessage();
         }
     });
-
     autoResizeTextarea();
     updateCharCounter();
 }
@@ -1057,7 +1091,6 @@ function initAttachMenu() {
                 const compressedFile = await compressImage(file);
                 pendingFile = compressedFile;
                 preventAutoSend = true;
-                console.log('✅ pendingFile установлен:', pendingFile.name);
                 showFilePreview(compressedFile);
                 setTimeout(() => { preventAutoSend = false; }, 500);
             }
@@ -1073,7 +1106,6 @@ function initAttachMenu() {
                 console.log('📄 Выбран файл:', file.name);
                 if (file.size > 50 * 1024 * 1024) { alert('Файл слишком большой. Максимум 50MB'); return; }
                 pendingFile = file;
-                console.log('✅ pendingFile установлен:', pendingFile.name);
                 showFilePreview(file);
             }
             fileInput.value = '';
@@ -1082,7 +1114,6 @@ function initAttachMenu() {
 }
 
 async function compressImage(file) {
-    console.log('🖼️ Сжатие изображения:', file.name);
     return new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -1099,9 +1130,7 @@ async function compressImage(file) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 canvas.toBlob((blob) => {
-                    const compressed = new File([blob], file.name, { type: file.type, lastModified: Date.now() });
-                    console.log('✅ Изображение сжато:', compressed.name, compressed.size, 'было:', file.size);
-                    resolve(compressed);
+                    resolve(new File([blob], file.name, { type: file.type, lastModified: Date.now() }));
                 }, file.type, 0.8);
             };
         };
@@ -1109,45 +1138,23 @@ async function compressImage(file) {
 }
 
 function showFilePreview(file) {
-    // Удаляем старый превью если есть
     const oldPreview = document.getElementById('previewContainer');
     if (oldPreview) oldPreview.remove();
-
     const container = document.createElement('div');
     container.className = 'preview-container';
     container.id = 'previewContainer';
     const isImage = file.type?.startsWith('image/');
     const fileSize = formatFileSize(file.size);
-
     const updatePreview = (imageSrc) => {
         if (isImage && imageSrc) {
-            container.innerHTML = `
-                <img src="${imageSrc}" class="preview-image" alt="">
-                <div class="preview-info">
-                    <span class="preview-name">${escapeHtml(file.name)}</span>
-                    <span class="preview-size">${fileSize}</span>
-                </div>
-                <button class="preview-remove" onclick="removeFilePreview()">✕</button>
-            `;
+            container.innerHTML = `<img src="${imageSrc}" class="preview-image" alt=""><div class="preview-info"><span class="preview-name">${escapeHtml(file.name)}</span><span class="preview-size">${fileSize}</span></div><button class="preview-remove" onclick="removeFilePreview()">✕</button>`;
         } else {
-            container.innerHTML = `
-                <div class="file-icon"><ion-icon name="document-outline"></ion-icon></div>
-                <div class="preview-info">
-                    <span class="preview-name">${escapeHtml(file.name)}</span>
-                    <span class="preview-size">${fileSize}</span>
-                </div>
-                <button class="preview-remove" onclick="removeFilePreview()">✕</button>
-            `;
+            container.innerHTML = `<div class="file-icon"><ion-icon name="document-outline"></ion-icon></div><div class="preview-info"><span class="preview-name">${escapeHtml(file.name)}</span><span class="preview-size">${fileSize}</span></div><button class="preview-remove" onclick="removeFilePreview()">✕</button>`;
         }
-
-        // Вставляем превью НАД полем ввода (перед .input)
         const inputDiv = document.querySelector('.input');
         const messager = document.getElementById('messager');
-        if (messager && inputDiv) {
-            messager.insertBefore(container, inputDiv);
-        }
+        if (messager && inputDiv) messager.insertBefore(container, inputDiv);
     };
-
     if (isImage) {
         const reader = new FileReader();
         reader.onload = (e) => updatePreview(e.target.result);
@@ -1159,53 +1166,23 @@ function showFilePreview(file) {
 
 function removeFilePreview() {
     const preview = document.getElementById('previewContainer');
-    if (preview) {
-        preview.remove();
-    }
+    if (preview) preview.remove();
     pendingFile = null;
 }
 
 async function uploadFile(file) {
     if (!file) return null;
-
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
     const filePath = `public/${fileName}`;
-
-    console.log('📤 Загрузка в Storage:', filePath);
-
     try {
-        const { data, error } = await window.sbClient.storage
-            .from('chat-attachments')
-            .upload(filePath, file, {
-                cacheControl: '3600',
-                upsert: false
-            });
-
-        if (error) {
-            console.error('❌ Ошибка загрузки:', error);
-            alert('Ошибка загрузки: ' + error.message);
-            return null;
-        }
-
-        console.log('✅ Загружено, data:', data);
-
+        const { error } = await window.sbClient.storage.from('chat-attachments').upload(filePath, file, { cacheControl: '3600', upsert: false });
+        if (error) { console.error('❌ Ошибка загрузки:', error); alert('Ошибка загрузки: ' + error.message); return null; }
         const SUPABASE_URL = SUPABASE_CONFIG.url;
         const bucketName = 'chat-attachments';
         const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketName}/${filePath}`;
-
-        console.log('📎 Публичный URL:', publicUrl);
-
-        return {
-            url: publicUrl,
-            name: file.name,
-            size: file.size,
-            type: file.type
-        };
-    } catch (err) {
-        console.error('❌ Ошибка:', err);
-        return null;
-    }
+        return { url: publicUrl, name: file.name, size: file.size, type: file.type };
+    } catch (err) { console.error('❌ Ошибка:', err); return null; }
 }
 
 function initPhotoViewer() {
@@ -1228,163 +1205,62 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
     container.className = 'message-container';
     container.setAttribute('data-message-id', messageId);
     if (!isOwn) container.classList.add('other');
-
     const time = createdAt ? new Date(createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : getShortTime();
-
     let innerHTML = '';
-    if (text && text.trim()) {
-        innerHTML += `<span class="message-content">${escapeHtml(text)}</span>`;
-    }
-
+    if (text && text.trim()) innerHTML += `<span class="message-content">${escapeHtml(text)}</span>`;
     if (attachment && attachment.url) {
         const fileType = attachment.type || '';
         const fileName = attachment.name || 'file';
         const isImage = fileType.startsWith('image/');
         const isVideo = fileType.startsWith('video/');
         const isAudio = fileType.startsWith('audio/');
-
-        const maxNameLength = window.innerWidth <= 480 ? 20 : 35;
-        const shortName = truncateFileName(fileName, maxNameLength);
-
-        console.log('📸 Отображение вложения:', { isImage, isVideo, isAudio, url: attachment.url, name: fileName });
-
-        // Кнопка скачивания для всех типов файлов
+        const shortName = truncateFileName(fileName, window.innerWidth <= 480 ? 20 : 35);
         const downloadBtn = `<button class="file-download-btn" onclick="event.stopPropagation(); downloadFile('${attachment.url}', '${escapeHtml(fileName)}')"><ion-icon name="download-outline"></ion-icon></button>`;
-
         if (isImage) {
-            // Изображение + кнопка скачивания
-            innerHTML += `<div class="message-attachment">
-                <img src="${attachment.url}" alt="${escapeHtml(fileName)}" loading="lazy" onclick="openPhotoViewer('${attachment.url}')">
-                ${downloadBtn}
-            </div>`;
+            innerHTML += `<div class="message-attachment"><img src="${attachment.url}" alt="${escapeHtml(fileName)}" loading="lazy" onclick="openPhotoViewer('${attachment.url}')">${downloadBtn}</div>`;
         } else if (isVideo) {
-            // Видео с плеером + кнопка скачивания
-            innerHTML += `<div class="message-attachment video-attachment">
-                <video controls preload="metadata" class="video-player">
-                    <source src="${attachment.url}" type="${fileType}">
-                    Ваш браузер не поддерживает видео
-                </video>
-                <div class="file-info">
-                    <div class="file-name">🎬 ${escapeHtml(shortName)}</div>
-                    <div class="file-size">${formatFileSize(attachment.size)}</div>
-                    ${downloadBtn}
-                </div>
-            </div>`;
+            innerHTML += `<div class="message-attachment video-attachment"><video controls preload="metadata" class="video-player"><source src="${attachment.url}" type="${fileType}"></video><div class="file-info"><div class="file-name">🎬 ${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`;
         } else if (isAudio) {
-            // Аудио с плеером + кнопка скачивания
-            innerHTML += `<div class="message-attachment audio-attachment">
-                <div class="audio-player-wrapper">
-                    <audio controls preload="metadata" class="audio-player">
-                        <source src="${attachment.url}" type="${fileType}">
-                        Ваш браузер не поддерживает аудио
-                    </audio>
-                </div>
-                <div class="file-info">
-                    <div class="file-name">🎵 ${escapeHtml(shortName)}</div>
-                    <div class="file-size">${formatFileSize(attachment.size)}</div>
-                    ${downloadBtn}
-                </div>
-            </div>`;
+            innerHTML += `<div class="message-attachment audio-attachment"><div class="audio-player-wrapper"><audio controls preload="metadata" class="audio-player"><source src="${attachment.url}" type="${fileType}"></audio></div><div class="file-info"><div class="file-name">🎵 ${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`;
         } else {
-            // Другие файлы
-            const fileSize = formatFileSize(attachment.size);
-            innerHTML += `<div class="message-attachment">
-                <div class="file-icon"><ion-icon name="document-outline"></ion-icon></div>
-                <div class="file-info">
-                    <div class="file-name">${escapeHtml(shortName)}</div>
-                    <div class="file-size">${fileSize}</div>
-                </div>
-                ${downloadBtn}
-            </div>`;
+            innerHTML += `<div class="message-attachment"><div class="file-icon"><ion-icon name="document-outline"></ion-icon></div><div class="file-info"><div class="file-name">${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`;
         }
     }
-
     innerHTML += `<span class="message-time">${time}</span>`;
-    if (isOwn) {
-        innerHTML += `<button class="message-delete-btn" onclick="deleteMessage('${messageId}', this.parentElement)"><ion-icon name="close-outline" style="color: #ffffff"></ion-icon></button>`;
-    }
-
+    if (isOwn) innerHTML += `<button class="message-delete-btn" onclick="deleteMessage('${messageId}', this.parentElement)"><ion-icon name="close-outline"></ion-icon></button>`;
     container.innerHTML = innerHTML;
     messagesContainer?.appendChild(container);
-    console.log('✅ Сообщение добавлено в DOM');
 }
 
 async function sendMessage() {
-    if (preventAutoSend) {
-        console.log('⏳ Пропускаем автоматическую отправку после выбора фото');
-        return;
-    }
-    if (isSending) {
-        console.log('⏳ Отправка уже выполняется, пропускаем');
-        return;
-    }
-
+    if (preventAutoSend || isSending) return;
     const value = messageInput?.value.trim();
-    console.log('📞 sendMessage, value:', value, 'pendingFile:', pendingFile ? pendingFile.name : 'null');
-
-    if (!value && !pendingFile) {
-        console.log('❌ Нет ни текста, ни файла');
-        return;
-    }
-    if (!currentChatUser) {
-        alert('Сначала выберите собеседника');
-        return;
-    }
-
+    if (!value && !pendingFile) return;
+    if (!currentChatUser) { alert('Сначала выберите собеседника'); return; }
     isSending = true;
     const fileToSend = pendingFile;
     pendingFile = null;
-
     const preview = document.getElementById('previewContainer');
     if (preview) preview.remove();
-
     try {
         const { data: { user: currentUser } } = await window.sbClient.auth.getUser();
         if (!currentUser) { isSending = false; return; }
-
         if (!currentChatId) {
             const chatId = await getOrCreateChatId(currentUser.id, currentChatUser.id);
             if (!chatId) { alert('Ошибка создания чата'); isSending = false; return; }
             currentChatId = chatId;
         }
-
         let attachment = null;
         if (fileToSend) {
-            console.log('📤 Загрузка файла:', fileToSend.name);
             attachment = await uploadFile(fileToSend);
             if (!attachment) { alert('Не удалось загрузить файл'); isSending = false; return; }
-            console.log('✅ Файл загружен, attachment:', attachment);
         }
-
-        const { data, error } = await window.sbClient.from('messages').insert({
-            chat_id: currentChatId,
-            sender_id: currentUser.id,
-            receiver_id: currentChatUser.id,
-            text: value || ''
-        }).select().single();
-
+        const { data, error } = await window.sbClient.from('messages').insert({ chat_id: currentChatId, sender_id: currentUser.id, receiver_id: currentChatUser.id, text: value || '' }).select().single();
         if (error) { console.error('❌ Ошибка:', error); alert('Ошибка: ' + error.message); isSending = false; return; }
-
-        console.log('✅ Сообщение сохранено, id:', data.id);
-
         if (attachment && data) {
-            const { error: attachError } = await window.sbClient.from('attachments').insert({
-                message_id: data.id,
-                file_url: attachment.url,
-                file_name: attachment.name,
-                file_size: attachment.size,
-                file_type: attachment.type
-            });
-            if (attachError) {
-                console.error('❌ Ошибка сохранения вложения:', attachError);
-            } else {
-                console.log('✅ Вложение сохранено');
-            }
+            await window.sbClient.from('attachments').insert({ message_id: data.id, file_url: attachment.url, file_name: attachment.name, file_size: attachment.size, file_type: attachment.type });
         }
-
-        console.log('📝 Вызов displayMessageWithAttachment с attachment:', attachment);
         displayMessageWithAttachment(value, true, data.created_at, data.id, attachment);
-
         messageInput.value = '';
         autoResizeTextarea();
         updateCharCounter();
@@ -1392,7 +1268,7 @@ async function sendMessage() {
         if (window.innerWidth <= 767) await loadMobileChats();
         setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50);
     } catch (err) { console.error('❌ Ошибка:', err); }
-    finally { isSending = false; console.log('🏁 Отправка завершена'); }
+    finally { isSending = false; }
 }
 
 // =========================== 15. НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ ===========================
@@ -1434,79 +1310,299 @@ document.addEventListener('DOMContentLoaded', async () => {
         initEmojiPicker();
         initPhotoViewer();
         loadSavedTheme();
+        subscribeToTypingStatus();
+        await registerServiceWorker();
         await loadLastState();
     } else {
         loginWindow?.classList.remove('close'); registerWindow?.classList.add('close'); chatWindow?.classList.add('close');
     }
 });
-// Применение размера шрифта (после настроек)
+
 function applyFontSize(size) {
     const root = document.documentElement;
-    if (size === 'small') {
-        root.style.fontSize = '12px';
-    } else if (size === 'medium') {
-        root.style.fontSize = '14px';
-    } else if (size === 'large') {
-        root.style.fontSize = '16px';
-    }
+    if (size === 'small') root.style.fontSize = '12px';
+    else if (size === 'medium') root.style.fontSize = '14px';
+    else if (size === 'large') root.style.fontSize = '16px';
 }
 
-// Загрузка сохранённого размера шрифта при старте
-document.addEventListener('DOMContentLoaded', () => {
-    const savedFontSize = localStorage.getItem('fontSize');
-    if (savedFontSize) {
-        applyFontSize(savedFontSize);
-    }
-});
-// Применение темы (светлая/тёмная)
-function applyTheme(isDark) {
-    if (isDark) {
-        document.body.classList.add('dark');
-        localStorage.setItem('darkTheme', 'true');
-    } else {
-        document.body.classList.remove('dark');
-        localStorage.setItem('darkTheme', 'false');
-    }
-}
-// Загрузка сохранённой темы при старте
 function loadSavedTheme() {
     const savedTheme = localStorage.getItem('darkTheme');
-    if (savedTheme === 'true') {
-        document.body.classList.add('dark');
-    } else {
-        document.body.classList.remove('dark');
-    }
+    if (savedTheme === 'true') document.body.classList.add('dark');
+    else document.body.classList.remove('dark');
 }
 
-// Скачивание файла
 async function downloadFile(url, filename) {
     try {
-        // Показываем уведомление о начале загрузки
-        console.log(`📥 Начинаем загрузку: ${filename}`);
-
-        // Загружаем файл через fetch
         const response = await fetch(url);
         const blob = await response.blob();
-
-        // Создаём ссылку на blob
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = blobUrl;
         link.download = filename;
-
         document.body.appendChild(link);
         link.click();
-
-        // Очищаем
         setTimeout(() => {
             document.body.removeChild(link);
             window.URL.revokeObjectURL(blobUrl);
         }, 100);
-
-        console.log(`✅ Файл скачан: ${filename}`);
     } catch (error) {
         console.error('Ошибка скачивания:', error);
-        // Если не получилось - открываем в новой вкладке
         window.open(url, '_blank');
+    }
+
+            // ========== ДОБАВЬТЕ ЭТОТ БЛОК ==========
+            // Восстанавливаем push-подписку после загрузки
+            await registerServiceWorker();
+            const isSubscribed = await checkPushSubscription();
+
+            // Синхронизируем с локальным хранилищем
+            if (isSubscribed) {
+                localStorage.setItem('pushEnabled', 'true');
+                console.log('✅ Push-подписка активна');
+
+                // Обновляем подписку на сервере
+                const subscription = await swRegistration.pushManager.getSubscription();
+                if (subscription) {
+                    await saveSubscriptionToServer(subscription);
+                }
+            } else {
+                const savedPushEnabled = localStorage.getItem('pushEnabled') === 'true';
+                if (savedPushEnabled) {
+                    console.log('🔄 Восстанавливаем push-подписку...');
+                    await subscribeToPush();
+                }
+            }
+}
+
+// =========================== СТАТУС "ПЕЧАТАЕТ" ===========================
+async function updateTypingStatus(chatId, isTyping) {
+    if (!window.sbClient || !chatId) return;
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) return;
+    try {
+        await window.sbClient.from('typing_status').upsert({ user_id: user.id, chat_id: chatId, is_typing: isTyping, updated_at: new Date().toISOString() }, { onConflict: 'user_id,chat_id' });
+    } catch (err) { console.error('Ошибка:', err); }
+}
+
+function sendTypingStatus() {
+    if (!currentChatId) return;
+    if (isTypingCurrently) return;
+    isTypingCurrently = true;
+    updateTypingStatus(currentChatId, true);
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        isTypingCurrently = false;
+        updateTypingStatus(currentChatId, false);
+    }, 2000);
+}
+
+function resetTypingStatus() {
+    if (typingTimeout) clearTimeout(typingTimeout);
+    if (isTypingCurrently) {
+        isTypingCurrently = false;
+        if (currentChatId) updateTypingStatus(currentChatId, false);
+    }
+}
+
+function subscribeToTypingStatus() {
+    if (typingSubscription) window.sbClient.removeChannel(typingSubscription);
+    typingSubscription = window.sbClient.channel('typing-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'typing_status' }, async (payload) => {
+            const newStatus = payload.new;
+            if (payload.eventType === 'DELETE') return;
+            if (!newStatus) return;
+            if (newStatus.chat_id !== currentChatId) return;
+            const { data: { user } } = await window.sbClient.auth.getUser();
+            if (!user) return;
+            if (newStatus.user_id === user.id) return;
+            const chatTitle = document.getElementById('currentChatTitle');
+            if (!chatTitle) return;
+            if (newStatus.is_typing) {
+                chatTitle.innerHTML = `${currentChatUser?.name || ''} <span class="typing-indicator" style="font-size: 12px; color: #43ca00;">✍️ печатает...</span>`;
+            } else {
+                const userStatus = await getUserStatus(newStatus.user_id);
+                chatTitle.innerHTML = `${currentChatUser?.name || ''} <span class="user-status-indicator ${userStatus}">${userStatus === 'online' ? '' : ''}</span>`;
+            }
+        })
+        .subscribe((status) => { if (status === 'SUBSCRIBED') console.log('✅ Подписка на статусы печатания активна'); });
+}
+
+// =========================== PUSH-УВЕДОМЛЕНИЯ ===========================
+
+// Преобразование VAPID ключа
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// Подписка на push-уведомления
+async function subscribeToPush() {
+    if (!swRegistration) {
+        await registerServiceWorker();
+    }
+
+    if (!swRegistration) {
+        alert('Service Worker не зарегистрирован');
+        return false;
+    }
+
+    try {
+        let subscription = await swRegistration.pushManager.getSubscription();
+
+        if (subscription) {
+            console.log('Подписка уже существует');
+            await saveSubscriptionToServer(subscription);
+            localStorage.setItem('pushEnabled', 'true');  // ← ДОБАВИТЬ
+            alert('✅ Push-уведомления уже включены');
+            return true;
+        }
+
+        subscription = await swRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        console.log('✅ Push-подписка создана', subscription);
+        await saveSubscriptionToServer(subscription);
+        localStorage.setItem('pushEnabled', 'true');  // ← ДОБАВИТЬ
+        alert('✅ Push-уведомления включены!');
+        return true;
+    } catch (error) {
+        console.error('❌ Ошибка подписки:', error);
+        alert('Ошибка: ' + error.message);
+        return false;
+    }
+}
+
+// Сохранение подписки на сервере
+async function saveSubscriptionToServer(subscription) {
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) return false;
+
+    try {
+        const response = await fetch('/api/save-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, subscription: subscription })
+        });
+
+        if (response.ok) {
+            console.log('✅ Подписка сохранена на сервере');
+            return true;
+        } else {
+            console.error('Ошибка сохранения на сервере');
+            return false;
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        return false;
+    }
+}
+
+// Отписка от push-уведомлений
+async function unsubscribeFromPush() {
+    if (!swRegistration) return false;
+
+    try {
+        const subscription = await swRegistration.pushManager.getSubscription();
+        if (subscription) {
+            await subscription.unsubscribe();
+
+            const { data: { user } } = await window.sbClient.auth.getUser();
+            await fetch('/api/delete-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user?.id })
+            });
+
+            localStorage.setItem('pushEnabled', 'false');  // ← ДОБАВИТЬ
+
+            console.log('✅ Push-подписка удалена');
+            alert('❌ Push-уведомления отключены');
+            return true;
+        }
+    } catch (error) {
+        console.error('Ошибка отписки:', error);
+    }
+    return false;
+}
+
+// Проверка статуса подписки
+async function checkPushSubscription() {
+    if (!swRegistration) {
+        await registerServiceWorker();
+    }
+    if (!swRegistration) return false;
+
+    try {
+        const subscription = await swRegistration.pushManager.getSubscription();
+        const isSubscribed = !!subscription;
+
+        // Синхронизируем с localStorage
+        if (isSubscribed !== (localStorage.getItem('pushEnabled') === 'true')) {
+            localStorage.setItem('pushEnabled', isSubscribed);
+        }
+
+        return isSubscribed;
+    } catch (error) {
+        console.error('Ошибка проверки подписки:', error);
+        return false;
+    }
+}
+// Добавьте в конец app.js, перед закрывающей скобкой
+// Тестовая отправка push (для отладки)
+async function testPushNotification() {
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) {
+        console.log('Пользователь не авторизован');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                toUserId: user.id,
+                title: 'Тест push',
+                body: 'Если вы видите это - push работает! 🎉',
+                icon: '/favicon.ico'
+            })
+        });
+
+        const result = await response.json();
+        console.log('Тестовый push отправлен:', result);
+    } catch (error) {
+        console.error('Ошибка отправки тестового push:', error);
+    }
+}
+// Функция для отправки push-уведомления через сервер
+async function sendPushToUser(toUserId, title, body) {
+    try {
+        const response = await fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                toUserId: toUserId,
+                title: title,
+                body: body,
+                icon: '/favicon.ico'
+            })
+        });
+
+        if (response.ok) {
+            console.log('✅ Push отправлен пользователю:', toUserId);
+        } else {
+            const error = await response.json();
+            console.error('❌ Ошибка отправки push:', error);
+        }
+    } catch (error) {
+        console.error('❌ Ошибка при отправке push:', error);
     }
 }

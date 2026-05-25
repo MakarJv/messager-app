@@ -2,13 +2,14 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0,
-     maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
     <title>Messenger-app</title>
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="src/style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
 </head>
 <body>
 
@@ -48,12 +49,8 @@
             <div class="tab active" data-tab="chats">Чаты</div>
             <div class="tab" data-tab="users">Пользователи</div>
         </div>
-        <div class="list-container" id="chatsList">
-            <!-- чаты -->
-        </div>
-        <div class="list-container hidden" id="usersListContainer">
-            <!-- пользователи -->
-        </div>
+        <div class="list-container" id="chatsList"></div>
+        <div class="list-container hidden" id="usersListContainer"></div>
         <div class="desktop-footer">
             <div class="desktop-footer-item" id="profileDesktopBtn">
                 <ion-icon name="person-circle-outline"></ion-icon>
@@ -73,11 +70,13 @@
     <!-- ПРАВАЯ ПАНЕЛЬ -->
     <div id="messager">
         <div class="navBar">
-            <div class="menu-btn close" id="menuBtnMobile"><ion-icon name="menu-outline"></ion-icon></div>
+            <div class="menu-btn close" id="menuBtn"><ion-icon name="menu-outline"></ion-icon></div>
             <div class="chat-title" id="currentChatTitle">Общий чат</div>
             <div class="profile-icon"><ion-icon name="person-circle-outline"></ion-icon></div>
         </div>
+
         <div id="messageText"></div>
+
         <div class="input">
             <div class="attach-wrapper">
                 <button id="attachBtn" class="attach-btn"><ion-icon name="attach-outline"></ion-icon></button>
@@ -86,8 +85,19 @@
                     <button id="attachFileBtn" class="attach-menu-item"><ion-icon name="document-outline"></ion-icon><span>Файл</span></button>
                 </div>
             </div>
+            <button id="emojiBtn" class="emoji-btn"><ion-icon name="happy-outline"></ion-icon></button>
             <div class="message-input-wrapper">
                 <textarea id="message" placeholder="Введите сообщение..." autocomplete="off"></textarea>
+                <div class="emoji-picker" id="emojiPicker" style="display: none;">
+                    <div class="emoji-list">
+                        <span>😀</span><span>😃</span><span>😄</span><span>😁</span><span>😆</span>
+                        <span>😅</span><span>😂</span><span>🤣</span><span>😊</span><span>😇</span>
+                        <span>🙂</span><span>🙃</span><span>😉</span><span>😌</span><span>😍</span>
+                        <span>🥰</span><span>😘</span><span>😗</span><span>😙</span><span>😚</span>
+                        <span>❤️</span><span>💛</span><span>💚</span><span>💙</span><span>💜</span>
+                        <span>👍</span><span>👎</span><span>👊</span><span>✌️</span><span>🤘</span>
+                    </div>
+                </div>
                 <div class="input-char-counter" id="charCounter"></div>
             </div>
             <button id="sendBtn" class="send-btn"><ion-icon name="send-outline"></ion-icon></button>
