@@ -51,6 +51,7 @@
         </div>
         <div class="list-container" id="chatsList"></div>
         <div class="list-container hidden" id="usersListContainer"></div>
+        <!-- ДЕСКТОПНЫЙ ФУТЕР (виден на ПК) -->
         <div class="desktop-footer">
             <div class="desktop-footer-item" id="profileDesktopBtn">
                 <ion-icon name="person-circle-outline"></ion-icon>
@@ -65,17 +66,46 @@
                 <span>Выход</span>
             </div>
         </div>
+
+        <!-- МОБИЛЬНЫЙ ФУТЕР (виден на телефоне) -->
+        <div class="mobile-footer">
+            <div class="mobile-footer-item" id="mobileProfileBtn">
+                <ion-icon name="person-circle-outline"></ion-icon>
+                <span>Профиль</span>
+            </div>
+            <div class="mobile-footer-item" id="mobileSettingsBtn">
+                <ion-icon name="settings-outline"></ion-icon>
+                <span>Настройки</span>
+            </div>
+            <div class="mobile-footer-item" id="mobileExitBtn">
+                <ion-icon name="log-out-outline"></ion-icon>
+                <span>Выход</span>
+            </div>
+        </div>
     </div>
 
     <!-- ПРАВАЯ ПАНЕЛЬ -->
     <div id="messager">
         <div class="navBar">
-            <div class="menu-btn close" id="menuBtn"><ion-icon name="menu-outline"></ion-icon></div>
-            <div class="chat-title" id="currentChatTitle">Общий чат</div>
+            <div style="display:flex;align-items:center;">
+                <button class="mobile-back-btn" id="mobileBackBtn">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                </button>
+
+                <div class="chat-title" id="currentChatTitle">
+                    Выберите чат
+                </div>
+            </div>
             <div class="profile-icon"><ion-icon name="person-circle-outline"></ion-icon></div>
         </div>
 
-        <div id="messageText"></div>
+        <div class="empty-chat-screen" id="emptyChatScreen">
+            <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
+            <h2>Выберите чат</h2>
+            <p>Выберите диалог из списка слева</p>
+        </div>
+
+        <div id="messageText" class="hidden"></div>
 
         <div class="input">
             <div class="attach-wrapper">
@@ -112,30 +142,6 @@
                 <img id="photoViewerImg" src="" alt="">
             </div>
         </div>
-    </div>
-</div>
-
-<!-- 4. БОКОВОЕ МЕНЮ -->
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-<div class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-        <ion-icon name="chatbubbles-outline"></ion-icon><span>Мессенджер</span>
-        <button class="sidebar-close-btn" id="sidebarCloseBtn"><ion-icon name="close-outline"></ion-icon></button>
-    </div>
-    <div class="sidebar-search">
-        <ion-icon name="search-outline"></ion-icon>
-        <input type="text" id="sidebarSearchInput" placeholder="Поиск...">
-    </div>
-    <div class="sidebar-tabs">
-        <div class="sidebar-tab active" data-tab="chats"><ion-icon name="chatbubbles-outline"></ion-icon><span>Чаты</span></div>
-        <div class="sidebar-tab" data-tab="users"><ion-icon name="people-outline"></ion-icon><span>Люди</span></div>
-    </div>
-    <div class="sidebar-list" id="sidebarChatsList"><div class="sidebar-empty"><ion-icon name="chatbubbles-outline"></ion-icon><span>Нет чатов</span></div></div>
-    <div class="sidebar-list hidden" id="sidebarUsersList"><div class="sidebar-empty"><ion-icon name="people-outline"></ion-icon><span>Нет пользователей</span></div></div>
-    <div class="sidebar-footer">
-        <div class="sidebar-footer-item" id="profileMenuItem"><ion-icon name="person-circle-outline"></ion-icon><span>Профиль</span></div>
-        <div class="sidebar-footer-item" id="settingsMenuItem"><ion-icon name="settings-outline"></ion-icon><span>Настройки</span></div>
-        <div class="sidebar-footer-item" id="exitMenuItem"><ion-icon name="log-out-outline"></ion-icon><span>Выход</span></div>
     </div>
 </div>
 
