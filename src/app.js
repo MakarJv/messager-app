@@ -497,7 +497,31 @@ async function loadUsers() {
     if (!currentUser) return;
     const { data, error } = await window.sbClient.from('profiles').select('id, username').neq('id', currentUser.id);
     if (error) { console.error('Ошибка загрузки пользователей:', error); return; }
-    allUsers = data || [];
+
+    // Получаем статусы для всех пользователей
+    const usersWithStatus = [];
+    for (const user of (data || [])) {
+        const statusData = await getUserStatusWithLastSeen(user.id);
+        usersWithStatus.push({
+            ...user,
+            status: statusData.status,
+            lastSeen: statusData.rawLastSeen || new Date(0)
+        });
+    }
+
+    // Сортируем: сначала онлайн, затем по времени последней активности (сначала те, кто был недавно)
+    usersWithStatus.sort((a, b) => {
+        // Онлайн всегда вверху
+        if (a.status === 'online' && b.status !== 'online') return -1;
+        if (a.status !== 'online' && b.status === 'online') return 1;
+
+        // Если оба онлайн или оба оффлайн - сортируем по времени последней активности
+        const timeA = new Date(a.lastSeen);
+        const timeB = new Date(b.lastSeen);
+        return timeB - timeA; // Более поздние сверху
+    });
+
+    allUsers = usersWithStatus;
     renderUsersList();
 }
 
@@ -664,23 +688,35 @@ async function renderUsersList() {
     const container = document.getElementById('usersListContainer');
     if (!container) return;
     container.innerHTML = '';
+
+    // Фильтрация по поисковому запросу
     const filtered = allUsers.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase()));
+
     if (!filtered.length) {
         container.innerHTML = `<div class="empty-state"><ion-icon name="people-outline"></ion-icon><span>Нет других пользователей</span></div>`;
         return;
     }
+
     for (const user of filtered) {
-        const status = await getUserStatus(user.id);
+        const statusData = await getUserStatusWithLastSeen(user.id);
         const avatarUrl = await getAvatarUrl(user.id);
         const item = document.createElement('div');
         item.className = 'user-item';
+        if (statusData.status === 'online') {
+            item.classList.add('user-online');
+        }
         item.setAttribute('data-user-id', user.id);
+        item.setAttribute('data-last-seen', user.lastSeen || '');
+
         item.innerHTML = `<div class="user-avatar">
                             ${avatarUrl ? `<img src="${avatarUrl}" alt="${escapeHtml(user.username || 'Пользователь')}" loading="lazy">` : `<ion-icon name="person-outline"></ion-icon>`}
+                            ${statusData.status === 'online' ? '<span class="online-indicator"></span>' : ''}
                           </div>
                           <div class="user-info">
                               <div class="user-name">${escapeHtml(user.username || 'Пользователь')}</div>
-                              <div class="user-status ${status === 'online' ? 'online' : 'offline'}"></div>
+                              <div class="user-status-badge ${statusData.status === 'online' ? 'online' : 'offline'}">
+                                  ${statusData.status === 'online' ? '🟢 Онлайн' : `🕒 ${statusData.lastSeen}`}
+                              </div>
                           </div>`;
         item.onclick = () => openChatWithUser(user.id, user.username);
         container.appendChild(item);
@@ -710,7 +746,7 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
     resetTypingStatus();
     currentChatUser = { id: userId, name: userName };
     const title = document.getElementById('currentChatTitle');
-    const status = await getUserStatus(userId);
+    const statusData = await getUserStatusWithLastSeen(userId);
     const avatarUrl = await getAvatarUrl(userId);
     const profileIcon = document.querySelector('.profile-icon');
     if (profileIcon) {
@@ -721,7 +757,11 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
         }
     }
     if (title) {
-        title.innerHTML = `${escapeHtml(userName)} <span class="user-status-indicator ${status}"></span>`;
+        if (statusData.status === 'online') {
+            title.innerHTML = `${escapeHtml(userName)} <span class="user-status-indicator online"></span><span class="user-last-seen">онлайн</span>`;
+        } else {
+            title.innerHTML = `${escapeHtml(userName)} <span class="user-status-indicator offline"></span><span class="user-last-seen">${statusData.lastSeen}</span>`;
+        }
     }
     currentChatId = existingChatId || await getOrCreateChatId(cur.id, userId);
     if (!currentChatId) {
@@ -953,13 +993,41 @@ function subscribeToStatus() {
     statusSubscription = window.sbClient.channel('status-realtime')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_status' }, async p => {
             const up = p.new;
-            if (currentChatUser?.id === up.id) {
-                const title = document.getElementById('currentChatTitle');
-                if (title) title.innerHTML = `${currentChatUser.name} <span class="user-status-indicator ${up.status}"></span>`;
+
+            // Обновляем статус в allUsers
+            const userIndex = allUsers.findIndex(u => u.id === up.id);
+            if (userIndex !== -1) {
+                const statusData = await getUserStatusWithLastSeen(up.id);
+                allUsers[userIndex].status = statusData.status;
+                allUsers[userIndex].lastSeen = statusData.rawLastSeen || new Date(0);
+
+                // Пересортировываем массив
+                allUsers.sort((a, b) => {
+                    if (a.status === 'online' && b.status !== 'online') return -1;
+                    if (a.status !== 'online' && b.status === 'online') return 1;
+                    const timeA = new Date(a.lastSeen);
+                    const timeB = new Date(b.lastSeen);
+                    return timeB - timeA;
+                });
+
+                // Обновляем отображение
+                await renderUsersList();
             }
-            const userEl = document.querySelector(`.user-item[data-user-id="${up.id}"] .user-status`);
-            if (userEl) userEl.className = `user-status ${up.status === 'online' ? 'online' : 'offline'}`;
-            await loadUsers();
+
+            // Обновляем текущий открытый чат
+            if (currentChatUser?.id === up.id) {
+                const statusData = await getUserStatusWithLastSeen(up.id);
+                const title = document.getElementById('currentChatTitle');
+                if (title) {
+                    if (statusData.status === 'online') {
+                        title.innerHTML = `${currentChatUser.name} <span class="user-status-indicator online"></span><span class="user-last-seen">онлайн</span>`;
+                    } else {
+                        title.innerHTML = `${currentChatUser.name} <span class="user-status-indicator offline"></span><span class="user-last-seen">${statusData.lastSeen}</span>`;
+                    }
+                }
+            }
+
+            await loadUsers(); // Полная перезагрузка для синхронизации
         })
         .subscribe(s => s === 'SUBSCRIBED' && console.log('✅ Подписка на статусы активна'));
 }
@@ -1049,7 +1117,158 @@ function resetTypingStatus() {
     if (typingTimeout) clearTimeout(typingTimeout);
     if (isTypingCurrently) { isTypingCurrently = false; if (currentChatId) updateTypingStatus(currentChatId, false); }
 }
+// Добавьте эти функции в раздел СТАТУС ОНЛАЙН/ОФФЛАЙН (после getUserStatus)
 
+// =========================== 11.5. ПОСЛЕДНЯЯ АКТИВНОСТЬ ===========================
+function formatLastSeen(lastSeen) {
+    if (!lastSeen) return 'был(а) недавно';
+
+    const now = new Date();
+    const lastSeenDate = new Date(lastSeen);
+    const diffMs = now - lastSeenDate;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    // Онлайн (был менее 2 минут назад)
+    if (diffMins < 2) {
+        return 'онлайн';
+    }
+
+    // Сегодня
+    if (diffDays === 0) {
+        if (diffHours < 1) {
+            return `был(а) ${diffMins} мин. назад`;
+        }
+        const hours = diffHours;
+        const minutes = diffMins % 60;
+        if (minutes === 0) {
+            return `был(а) ${hours} ${getHourWord(hours)} назад`;
+        }
+        return `был(а) ${hours} ${getHourWord(hours)} ${minutes} мин. назад`;
+    }
+
+    // Вчера
+    if (diffDays === 1) {
+        const timeStr = lastSeenDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        return `был(а) вчера в ${timeStr}`;
+    }
+
+    // Недавно (2-7 дней)
+    if (diffDays < 7) {
+        const weekday = lastSeenDate.toLocaleDateString('ru-RU', { weekday: 'long' });
+        const timeStr = lastSeenDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        return `был(а) ${weekday} в ${timeStr}`;
+    }
+
+    // Давно
+    const dateStr = lastSeenDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    const timeStr = lastSeenDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return `был(а) ${dateStr} в ${timeStr}`;
+}
+
+function getHourWord(hours) {
+    const lastDigit = hours % 10;
+    const lastTwoDigits = hours % 100;
+
+    if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+        return 'часов';
+    }
+
+    switch (lastDigit) {
+        case 1: return 'час';
+        case 2:
+        case 3:
+        case 4: return 'часа';
+        default: return 'часов';
+    }
+}
+
+async function getUserLastSeen(userId) {
+    try {
+        const { data, error } = await window.sbClient
+            .from('user_status')
+            .select('status, last_seen, updated_at')
+            .eq('id', userId)
+            .single();
+
+        if (error || !data) {
+            return 'был(а) недавно';
+        }
+
+        // Если пользователь онлайн
+        if (data.status === 'online') {
+            const lastSeenDate = new Date(data.last_seen);
+            const now = new Date();
+            const diffMins = Math.floor((now - lastSeenDate) / 60000);
+
+            if (diffMins < 2) {
+                return 'онлайн';
+            }
+        }
+
+        // Используем last_seen или updated_at
+        const lastSeenTime = data.last_seen || data.updated_at;
+        return formatLastSeen(lastSeenTime);
+
+    } catch (err) {
+        console.error('Ошибка получения последней активности:', err);
+        return 'был(а) недавно';
+    }
+}
+
+// Обновляем функцию getUserStatus, чтобы она возвращала полный статус
+async function getUserStatusWithLastSeen(uid) {
+    try {
+        const { data, error } = await window.sbClient
+            .from('user_status')
+            .select('status, last_seen, updated_at')
+            .eq('id', uid)
+            .maybeSingle();
+
+        if (error || !data) {
+            return {
+                status: 'offline',
+                lastSeen: 'был(а) недавно',
+                rawLastSeen: new Date(0)
+            };
+        }
+
+        let status = data.status || 'offline';
+        let rawLastSeen = data.last_seen || data.updated_at;
+        let lastSeenText = formatLastSeen(rawLastSeen);
+
+        // Проверяем онлайн статус с учетом времени (если последняя активность больше 2 минут назад)
+        if (data.status === 'online' && rawLastSeen) {
+            const diffMins = (new Date() - new Date(rawLastSeen)) / 1000 / 60;
+            if (diffMins > 2) {
+                status = 'offline';
+                lastSeenText = formatLastSeen(rawLastSeen);
+            } else {
+                lastSeenText = 'онлайн';
+            }
+        }
+
+        return {
+            status,
+            lastSeen: lastSeenText,
+            rawLastSeen: rawLastSeen || new Date(0)
+        };
+    } catch (err) {
+        console.error('Ошибка получения статуса:', err);
+        return {
+            status: 'offline',
+            lastSeen: 'был(а) недавно',
+            rawLastSeen: new Date(0)
+        };
+    }
+}
+
+// Обновляем существующую функцию getUserStatus для обратной совместимости
+async function getUserStatus(uid) {
+    const { status } = await getUserStatusWithLastSeen(uid);
+    return status;
+}
 // =========================== 12. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК И ПОИСК ===========================
 function switchTab(tab) {
     activeTab = tab;
