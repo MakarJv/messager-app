@@ -444,6 +444,8 @@ body {
 /* Базовый контейнер сообщения */
 .message-container {
     position: relative;
+    display: flex;
+    flex-direction: column;
     max-width: 70%;
     padding: 10px 14px;
     font-size: 14px;
@@ -1093,12 +1095,13 @@ body {
 .profile-avatar .profile-change-avatar-btn {
     position: absolute;
     bottom: 0;
+    margin: 0 -5px;
     right: calc(50% - 50px);
     background: #43ca00;
     border: none;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2240,6 +2243,7 @@ body.dark .user-status-indicator.offline { background: var(--gray-text); }
 
 body.dark .photo-viewer { background: rgba(0, 0, 0, 0.95); }
 
+/*noinspection CssInvalidPseudoSelector*/
 body.dark .audio-player::-webkit-media-controls-panel { background: #1a1a2e; }
 body.dark .video-player { background: #000; }
 
@@ -2269,4 +2273,202 @@ body.dark .user-item,
 body.dark .tab,
 body.dark button {
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+/* Добавляем в конец файла */
+
+/* Аватары в списках */
+.chat-avatar img,
+.user-avatar img,
+.sidebar-chat-avatar img,
+.sidebar-user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Аватар в шапке чата */
+.profile-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-icon ion-icon {
+    width: 26px;
+    height: 26px;
+    color: var(--primary);
+}
+
+/* Модальное окно профиля - аватар */
+.profile-avatar {
+    text-align: center;
+    margin-bottom: 20px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.avatar-preview {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto;
+}
+
+.profile-avatar-img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--primary);
+}
+
+.profile-avatar-icon {
+    font-size: 100px;
+    color: var(--primary);
+}
+
+.profile-avatar .profile-avatar-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 0;
+}
+
+.profile-change-avatar-btn,
+.profile-delete-avatar-btn {
+    background: var(--primary);
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.profile-delete-avatar-btn {
+    background: var(--red);
+}
+
+.profile-change-avatar-btn:hover,
+.profile-delete-avatar-btn:hover {
+    transform: scale(1.05);
+}
+
+.profile-change-avatar-btn ion-icon,
+.profile-delete-avatar-btn ion-icon {
+    width: 18px;
+    height: 18px;
+    color: white;
+}
+
+/* Тёмная тема для аватаров */
+body.dark .profile-avatar-img {
+    border-color: var(--primary);
+}
+
+body.dark .profile-change-avatar-btn,
+body.dark .profile-delete-avatar-btn {
+    background: var(--primary);
+}
+
+body.dark .profile-delete-avatar-btn {
+    background: var(--red);
+}
+/* Добавляем в конец файла */
+
+/* Отметки о прочтении */
+.message-read-status {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    color: #888;
+    vertical-align: middle;
+}
+
+.message-read-status.read {
+    color: #43ca00;
+}
+
+.message-container .message-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* Непрочитанные сообщения в списке чатов */
+.chat-last-message.unread {
+    font-weight: 600;
+    color: var(--black);
+}
+
+.chat-item.has-unread {
+    background: rgba(67, 202, 0, 0.05);
+}
+
+/* Бейдж с количеством непрочитанных */
+.unread-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: var(--primary);
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    border: 2px solid var(--white);
+}
+
+.chat-avatar {
+    position: relative;
+}
+
+/* Тёмная тема для бейджа */
+body.dark .unread-badge {
+    border-color: var(--white);
+}
+
+body.dark .message-read-status {
+    color: #aaa;
+}
+
+body.dark .message-read-status.read {
+    color: #43ca00;
+}
+
+body.dark .chat-last-message.unread {
+    color: var(--black);
+}
+
+/* Анимация для отметки о прочтении */
+.message-read-status {
+    transition: color 0.2s ease;
+    color: var(--white);
+}
+
+/* Стиль для прочитанных сообщений */
+.message-container.read .message-read-status {
+    color: var(--white);
 }

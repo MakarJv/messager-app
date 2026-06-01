@@ -31,7 +31,8 @@ const emptyChatScreen = document.getElementById('emptyChatScreen');
 const mobileBackBtn = document.getElementById('mobileBackBtn');
 
 // VAPID ключи
-const VAPID_PUBLIC_KEY = 'BC9M1hyw0UrO65wjYz-VV3Zy_GzCgH1J1Dp94pOboqRLLC4jM5LocV1CfZDF-FzzNlMtUmpkG2-ESDwIwzHGAv0';
+const VAPID_PUBLIC_KEY = 'BD-Cv932C5rP0_50uvVg102h85E5HTDY1ZgSYlMpgAG9HGLI1SuYr7D5yyAEgEiB0qvBMuOfQSq8_xVB6Wh0UoQ';
+const VAPID_PRIVAT_KEY ='ZWFD_3X5KR0B1GVld9cTzNy-352lOY7gbFcbDMYduo8';
 
 // =========================== 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===========================
 let currentChatUser = null, currentChatId = null, allUsers = [], userChats = [];
@@ -51,6 +52,11 @@ let typingTimeout = null;
 let isTypingCurrently = false;
 let typingSubscription = null;
 let swRegistration = null;
+let avatarSubscription = null;
+let readReceiptsSubscription = null;
+let pushSubscription = null;
+let isPushSupported = false;
+const avatarCache = new Map();
 
 // =========================== УВЕДОМЛЕНИЯ ===========================
 function initNotificationSound() {
@@ -203,7 +209,185 @@ function truncateFileName(filename, maxLength = 30) {
     return name.slice(0, availableLength) + '...' + ext;
 }
 
-// =========================== 4. РЕГИСТРАЦИЯ, ВХОД, ВЫХОД ===========================
+function urlBase64ToUint8Array(base64String) {
+    if (!base64String || typeof base64String !== 'string') {
+        console.error('❌ base64String is undefined or null');
+        return new Uint8Array([0, 0, 0, 0]);
+    }
+    try {
+        let cleanBase64 = base64String.trim();
+        while (cleanBase64.length % 4 !== 0) {
+            cleanBase64 += '=';
+        }
+        cleanBase64 = cleanBase64.replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(cleanBase64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        console.log('✅ VAPID ключ преобразован успешно, длина:', outputArray.length);
+        return outputArray;
+    } catch (error) {
+        console.error('❌ Ошибка преобразования base64:', error);
+        return new Uint8Array([0x04, 0x08, 0x12, 0x16, 0x20]);
+    }
+}
+
+function checkPushSupport() {
+    return 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+// =========================== 4. АВАТАРЫ ===========================
+async function getUserAvatar(userId) {
+    if (!userId) return null;
+    try {
+        const { data, error } = await window.sbClient
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', userId)
+            .single();
+        if (error || !data || !data.avatar_url) return null;
+        return data.avatar_url;
+    } catch (err) {
+        console.error('Ошибка загрузки аватара:', err);
+        return null;
+    }
+}
+
+async function getAvatarUrl(userId, forceRefresh = false) {
+    if (!forceRefresh && avatarCache.has(userId)) {
+        return avatarCache.get(userId);
+    }
+    const url = await getUserAvatar(userId);
+    avatarCache.set(userId, url);
+    return url;
+}
+
+async function compressAvatarImage(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+            const img = new Image();
+            img.src = e.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width, height = img.height;
+                const maxSize = 300;
+                if (width > height && width > maxSize) {
+                    height = (height * maxSize) / width;
+                    width = maxSize;
+                } else if (height > maxSize) {
+                    width = (width * maxSize) / height;
+                    height = maxSize;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    resolve(new File([blob], file.name, { type: file.type, lastModified: Date.now() }));
+                }, file.type, 0.8);
+            };
+        };
+    });
+}
+
+async function uploadAvatar(file) {
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) return null;
+    if (file.size > 5 * 1024 * 1024) {
+        alert('❌ Размер файла не должен превышать 5MB');
+        return null;
+    }
+    if (!file.type.startsWith('image/')) {
+        alert('❌ Пожалуйста, выберите изображение');
+        return null;
+    }
+    const compressedFile = await compressAvatarImage(file);
+    const fileExt = compressedFile.name.split('.').pop();
+    const fileName = `avatar_${user.id}_${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+    try {
+        const { data: profile } = await window.sbClient
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', user.id)
+            .single();
+        if (profile?.avatar_url) {
+            const oldPath = profile.avatar_url.split('/avatars/')[1];
+            if (oldPath) {
+                await window.sbClient.storage.from('avatars').remove([`avatars/${oldPath}`]);
+            }
+        }
+        const { error: uploadError } = await window.sbClient.storage
+            .from('avatars')
+            .upload(filePath, compressedFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = window.sbClient.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+        const publicUrl = publicUrlData.publicUrl;
+        const { error: updateError } = await window.sbClient
+            .from('profiles')
+            .update({ avatar_url: publicUrl })
+            .eq('id', user.id);
+        if (updateError) throw updateError;
+        avatarCache.delete(user.id);
+        return publicUrl;
+    } catch (err) {
+        console.error('❌ Ошибка загрузки аватара:', err);
+        alert('Ошибка загрузки: ' + err.message);
+        return null;
+    }
+}
+
+async function deleteAvatar() {
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) return false;
+    try {
+        const { data: profile } = await window.sbClient
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', user.id)
+            .single();
+        if (profile?.avatar_url) {
+            const oldPath = profile.avatar_url.split('/avatars/')[1];
+            if (oldPath) {
+                await window.sbClient.storage.from('avatars').remove([`avatars/${oldPath}`]);
+            }
+        }
+        const { error } = await window.sbClient
+            .from('profiles')
+            .update({ avatar_url: null })
+            .eq('id', user.id);
+        if (error) throw error;
+        avatarCache.delete(user.id);
+        return true;
+    } catch (err) {
+        console.error('❌ Ошибка удаления аватара:', err);
+        return false;
+    }
+}
+
+async function updateAllAvatars() {
+    avatarCache.clear();
+    await renderChatsList();
+    await renderUsersList();
+    if (currentChatUser) {
+        const avatarUrl = await getAvatarUrl(currentChatUser.id);
+        const profileIcon = document.querySelector('.profile-icon');
+        if (profileIcon) {
+            if (avatarUrl) {
+                profileIcon.innerHTML = `<img src="${avatarUrl}" alt="${escapeHtml(currentChatUser.name)}">`;
+            } else {
+                profileIcon.innerHTML = `<ion-icon name="person-circle-outline"></ion-icon>`;
+            }
+        }
+    }
+}
+
+// =========================== 5. РЕГИСТРАЦИЯ, ВХОД, ВЫХОД ===========================
 async function registerUser() {
     const username = regUsername?.value.trim(), email = regEmail?.value.trim(), password = regPassword?.value;
     if (!email || !password || !username) { alert('Заполните все поля'); return; }
@@ -242,9 +426,10 @@ async function registerServiceWorker() {
                 return true;
             }
         }
-        swRegistration = await navigator.serviceWorker.register('/sw.js');
+        swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
         console.log('✅ Новый Service Worker зарегистрирован');
         await navigator.serviceWorker.ready;
+        console.log('✅ Service Worker готов к работе');
         return true;
     } catch (error) {
         console.error('❌ Ошибка регистрации SW:', error);
@@ -269,6 +454,19 @@ async function enterChat() {
         initNotificationSound();
         requestNotificationPermission();
         await registerServiceWorker();
+        const savedPushEnabled = localStorage.getItem('pushEnabled') === 'true';
+        if (savedPushEnabled) {
+            const isSubscribed = await checkPushSubscription();
+            if (!isSubscribed) {
+                console.log('🔄 Восстанавливаем push-подписку...');
+                await subscribeToPush();
+            } else {
+                const subscription = await swRegistration.pushManager.getSubscription();
+                if (subscription) {
+                    await saveSubscriptionToServer(subscription);
+                }
+            }
+        }
     }
     if (!localStorage.getItem('notificationPermissionAsked')) {
         setTimeout(async () => {
@@ -279,20 +477,6 @@ async function enterChat() {
             }
             localStorage.setItem('notificationPermissionAsked', 'true');
         }, 2000);
-    }
-    await registerServiceWorker();
-    const savedPushEnabled = localStorage.getItem('pushEnabled') === 'true';
-    if (savedPushEnabled) {
-        const isSubscribed = await checkPushSubscription();
-        if (!isSubscribed) {
-            console.log('🔄 Восстанавливаем push-подписку...');
-            await subscribeToPush();
-        } else {
-            const subscription = await swRegistration.pushManager.getSubscription();
-            if (subscription) {
-                await saveSubscriptionToServer(subscription);
-            }
-        }
     }
 }
 
@@ -306,7 +490,7 @@ async function logout() {
     document.querySelector('.chat')?.classList.remove('chat-opened');
 }
 
-// =========================== 5. РАБОТА С ПОЛЬЗОВАТЕЛЯМИ И ЧАТАМИ ===========================
+// =========================== 6. РАБОТА С ПОЛЬЗОВАТЕЛЯМИ И ЧАТАМИ ===========================
 async function loadUsers() {
     if (!window.sbClient) return;
     const { data: { user: currentUser } } = await window.sbClient.auth.getUser();
@@ -317,143 +501,163 @@ async function loadUsers() {
     renderUsersList();
 }
 
+async function getUnreadCount(chatId, userId) {
+    if (!chatId || !userId) return 0;
+    try {
+        const { count, error } = await window.sbClient
+            .from('messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('chat_id', chatId)
+            .eq('receiver_id', userId)
+            .eq('is_read', false);
+        if (error) {
+            console.error('Ошибка получения счетчика непрочитанных:', error);
+            return 0;
+        }
+        return count || 0;
+    } catch (err) {
+        console.error('Ошибка в getUnreadCount:', err);
+        return 0;
+    }
+}
+
 async function loadUserChats() {
     if (!window.sbClient) return;
     const { data: { user: currentUser } } = await window.sbClient.auth.getUser();
     if (!currentUser) return;
-    const { data: participants, error } = await window.sbClient.from('chat_participants').select('chat_id').eq('user_id', currentUser.id);
-    if (error) { console.error('Ошибка загрузки чатов:', error); return; }
-    if (!participants?.length) { userChats = []; renderChatsList(); return; }
+    const { data: participants, error } = await window.sbClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', currentUser.id);
+    if (error) {
+        console.error('Ошибка загрузки чатов:', error);
+        return;
+    }
+    if (!participants?.length) {
+        userChats = [];
+        renderChatsList();
+        return;
+    }
     userChats = [];
     for (const p of participants) {
-        const { data: other } = await window.sbClient.from('chat_participants').select('user_id').eq('chat_id', p.chat_id).neq('user_id', currentUser.id);
+        const { data: other } = await window.sbClient
+            .from('chat_participants')
+            .select('user_id')
+            .eq('chat_id', p.chat_id)
+            .neq('user_id', currentUser.id);
         if (!other?.length) continue;
-        const { data: profile } = await window.sbClient.from('profiles').select('username').eq('id', other[0].user_id).single();
-
-        // Получаем последнее сообщение с учетом вложений
+        const { data: profile } = await window.sbClient
+            .from('profiles')
+            .select('username')
+            .eq('id', other[0].user_id)
+            .single();
         const { data: lastMessage } = await window.sbClient
             .from('messages')
-            .select('id, text, created_at, sender_id')
+            .select('id, text, created_at, sender_id, is_read')
             .eq('chat_id', p.chat_id)
             .order('created_at', { ascending: false })
             .limit(1)
-            .maybeSingle(); // используем maybeSingle вместо single
-
+            .maybeSingle();
+        const unreadCount = await getUnreadCount(p.chat_id, currentUser.id);
         let lastMessageText = 'Нет сообщений';
         let lastMessageTime = null;
-
+        let lastMessageSender = null;
         if (lastMessage) {
             lastMessageTime = lastMessage.created_at;
-
-            // Проверяем есть ли вложение у последнего сообщения
+            lastMessageSender = lastMessage.sender_id;
             const { data: attachment } = await window.sbClient
                 .from('attachments')
                 .select('file_type, file_name')
                 .eq('message_id', lastMessage.id)
                 .maybeSingle();
-
+            let messagePreview = '';
             if (attachment) {
-                // Определяем тип файла для отображения
                 const fileType = attachment.file_type || '';
-
-                if (fileType.startsWith('image/')) {
-                    lastMessageText = '📸 Фото';
-                } else if (fileType.startsWith('video/')) {
-                    lastMessageText = '🎬 Видео';
-                } else if (fileType.startsWith('audio/')) {
-                    lastMessageText = '🎵 Аудио';
-                } else {
-                    lastMessageText = '📎 Файл';
-                }
-
-                // Добавляем отправителя
-                if (lastMessage.sender_id !== currentUser.id) {
-                    const { data: senderProfile } = await window.sbClient
-                        .from('profiles')
-                        .select('username')
-                        .eq('id', lastMessage.sender_id)
-                        .single();
-                    if (senderProfile) {
-                        lastMessageText = `${senderProfile.username}: ${lastMessageText}`;
-                    }
-                } else {
-                    lastMessageText = `Вы: ${lastMessageText}`;
-                }
+                if (fileType.startsWith('image/')) messagePreview = '📸 Фото';
+                else if (fileType.startsWith('video/')) messagePreview = '🎬 Видео';
+                else if (fileType.startsWith('audio/')) messagePreview = '🎵 Аудио';
+                else messagePreview = '📎 Файл';
             } else if (lastMessage.text && lastMessage.text.trim()) {
-                let msgText = lastMessage.text.trim();
-                if (msgText.length > 50) msgText = msgText.slice(0, 47) + '...';
-
-                // Добавляем отправителя для текстовых сообщений
-                if (lastMessage.sender_id !== currentUser.id) {
-                    const { data: senderProfile } = await window.sbClient
-                        .from('profiles')
-                        .select('username')
-                        .eq('id', lastMessage.sender_id)
-                        .single();
-                    if (senderProfile) {
-                        lastMessageText = `${senderProfile.username}: ${msgText}`;
-                    } else {
-                        lastMessageText = msgText;
-                    }
+                messagePreview = lastMessage.text.trim();
+                if (messagePreview.length > 50) messagePreview = messagePreview.slice(0, 47) + '...';
+            }
+            if (lastMessage.sender_id !== currentUser.id) {
+                const { data: senderProfile } = await window.sbClient
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', lastMessage.sender_id)
+                    .single();
+                if (senderProfile) {
+                    lastMessageText = `${senderProfile.username}: ${messagePreview}`;
                 } else {
-                    lastMessageText = msgText;
+                    lastMessageText = messagePreview;
                 }
+            } else {
+                const readMark = lastMessage.is_read ? '✓✓' : '✓';
+                lastMessageText = `Вы: ${messagePreview} ${readMark}`;
             }
         }
-
         userChats.push({
             chatId: p.chat_id,
             userId: other[0].user_id,
             username: profile?.username || 'Пользователь',
             lastMessage: lastMessageText,
-            lastTime: lastMessageTime || null
+            lastMessageTime: lastMessageTime,
+            lastMessageSender: lastMessageSender,
+            unreadCount: unreadCount
         });
     }
+    userChats.sort((a, b) => {
+        if (!a.lastMessageTime && !b.lastMessageTime) return 0;
+        if (!a.lastMessageTime) return 1;
+        if (!b.lastMessageTime) return -1;
+        return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
+    });
     renderChatsList();
 }
 
-function renderChatsList() {
+async function renderChatsList() {
     const container = document.getElementById('chatsList');
     if (!container) return;
-
-    // Очищаем контейнер
     container.innerHTML = '';
-
     if (!userChats.length) {
         container.innerHTML = `<div class="empty-state"><ion-icon name="chatbubbles-outline"></ion-icon><span>Нет активных чатов</span></div>`;
         return;
     }
-
-    // Убираем возможные дубликаты по userId перед рендерингом
     const uniqueChats = [];
     const seenUserIds = new Set();
-
     for (const chat of userChats) {
         if (!seenUserIds.has(chat.userId)) {
             seenUserIds.add(chat.userId);
             uniqueChats.push(chat);
         }
     }
-
     const filtered = uniqueChats.filter(c => c.username.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    filtered.forEach(chat => {
+    for (const chat of filtered) {
         const item = document.createElement('div');
         item.className = 'chat-item';
         if (currentChatUser?.id === chat.userId) item.classList.add('active');
+        if (chat.unreadCount > 0) item.classList.add('has-unread');
         item.setAttribute('data-user-id', chat.userId);
         item.setAttribute('data-chat-id', chat.chatId);
-        const time = chat.lastTime ? new Date(chat.lastTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-
-        item.innerHTML = `<div class="chat-avatar"><ion-icon name="person-outline"></ion-icon></div>
+        const time = chat.lastMessageTime ? new Date(chat.lastMessageTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+        const avatarUrl = await getAvatarUrl(chat.userId);
+        let unreadBadge = '';
+        if (chat.unreadCount > 0) {
+            unreadBadge = `<div class="unread-badge">${chat.unreadCount > 99 ? '99+' : chat.unreadCount}</div>`;
+        }
+        item.innerHTML = `<div class="chat-avatar">
+                            ${avatarUrl ? `<img src="${avatarUrl}" alt="${escapeHtml(chat.username)}" loading="lazy">` : `<ion-icon name="person-outline"></ion-icon>`}
+                            ${unreadBadge}
+                          </div>
                           <div class="chat-info">
                               <div class="chat-name">${escapeHtml(chat.username)}</div>
-                              <div class="chat-last-message">${escapeHtml(chat.lastMessage)}</div>
+                              <div class="chat-last-message ${chat.unreadCount > 0 ? 'unread' : ''}">${escapeHtml(chat.lastMessage)}</div>
                           </div>
                           <div class="chat-time">${time}</div>`;
         item.onclick = () => openChatWithUser(chat.userId, chat.username, chat.chatId);
         container.appendChild(item);
-    });
+    }
 }
 
 async function renderUsersList() {
@@ -461,13 +665,23 @@ async function renderUsersList() {
     if (!container) return;
     container.innerHTML = '';
     const filtered = allUsers.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase()));
-    if (!filtered.length) { container.innerHTML = `<div class="empty-state"><ion-icon name="people-outline"></ion-icon><span>Нет других пользователей</span></div>`; return; }
+    if (!filtered.length) {
+        container.innerHTML = `<div class="empty-state"><ion-icon name="people-outline"></ion-icon><span>Нет других пользователей</span></div>`;
+        return;
+    }
     for (const user of filtered) {
         const status = await getUserStatus(user.id);
+        const avatarUrl = await getAvatarUrl(user.id);
         const item = document.createElement('div');
         item.className = 'user-item';
         item.setAttribute('data-user-id', user.id);
-        item.innerHTML = `<div class="user-avatar"><ion-icon name="person-outline"></ion-icon></div><div class="user-info"><div class="user-name">${escapeHtml(user.username || 'Пользователь')}</div><div class="user-status ${status === 'online' ? 'online' : 'offline'}"></div></div>`;
+        item.innerHTML = `<div class="user-avatar">
+                            ${avatarUrl ? `<img src="${avatarUrl}" alt="${escapeHtml(user.username || 'Пользователь')}" loading="lazy">` : `<ion-icon name="person-outline"></ion-icon>`}
+                          </div>
+                          <div class="user-info">
+                              <div class="user-name">${escapeHtml(user.username || 'Пользователь')}</div>
+                              <div class="user-status ${status === 'online' ? 'online' : 'offline'}"></div>
+                          </div>`;
         item.onclick = () => openChatWithUser(user.id, user.username);
         container.appendChild(item);
     }
@@ -489,7 +703,7 @@ async function getOrCreateChatId(u1, u2) {
     } catch (err) { console.error(err); return null; }
 }
 
-// =========================== 6. ОТКРЫТИЕ ЧАТА ===========================
+// =========================== 7. ОТКРЫТИЕ ЧАТА ===========================
 async function openChatWithUser(userId, userName, existingChatId = null) {
     const { data: { user: cur } } = await window.sbClient.auth.getUser();
     if (!cur) return;
@@ -497,6 +711,15 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
     currentChatUser = { id: userId, name: userName };
     const title = document.getElementById('currentChatTitle');
     const status = await getUserStatus(userId);
+    const avatarUrl = await getAvatarUrl(userId);
+    const profileIcon = document.querySelector('.profile-icon');
+    if (profileIcon) {
+        if (avatarUrl) {
+            profileIcon.innerHTML = `<img src="${avatarUrl}" alt="${escapeHtml(userName)}">`;
+        } else {
+            profileIcon.innerHTML = `<ion-icon name="person-circle-outline"></ion-icon>`;
+        }
+    }
     if (title) {
         title.innerHTML = `${escapeHtml(userName)} <span class="user-status-indicator ${status}"></span>`;
     }
@@ -506,6 +729,7 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
         return;
     }
     console.log('Открыт чат:', currentChatId);
+    await markMessagesAsRead(currentChatId);
     await loadMessages();
     updateDesktopEmptyState();
     if (window.innerWidth <= 767) {
@@ -516,28 +740,56 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
     if (activeItem) activeItem.classList.add('active');
 }
 
+async function markMessagesAsRead(chatId) {
+    if (!chatId) return;
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) return;
+    try {
+        const { data: unreadMessages, error } = await window.sbClient
+            .from('messages')
+            .select('id')
+            .eq('chat_id', chatId)
+            .eq('receiver_id', user.id)
+            .eq('is_read', false);
+        if (error) {
+            console.error('Ошибка получения непрочитанных сообщений:', error);
+            return;
+        }
+        if (unreadMessages && unreadMessages.length > 0) {
+            const { error: updateError } = await window.sbClient
+                .from('messages')
+                .update({ is_read: true, read_at: new Date().toISOString() })
+                .in('id', unreadMessages.map(m => m.id));
+            if (updateError) {
+                console.error('Ошибка обновления статуса прочтения:', updateError);
+            } else {
+                console.log(`✅ Помечено как прочитано: ${unreadMessages.length} сообщений`);
+                await loadUserChats();
+            }
+        }
+    } catch (err) {
+        console.error('Ошибка в markMessagesAsRead:', err);
+    }
+}
+
 async function loadMessages() {
     if (!currentChatId) {
         updateDesktopEmptyState();
         return;
     }
-
     const { data: { user: cur } } = await window.sbClient.auth.getUser();
     if (!cur) return;
-
+    await markMessagesAsRead(currentChatId);
     const { data: messages, error: msgError } = await window.sbClient
         .from('messages')
         .select('*')
         .eq('chat_id', currentChatId)
         .order('created_at', { ascending: true });
-
     if (msgError) {
         console.error(msgError);
         return;
     }
-
     if (messagesContainer) messagesContainer.innerHTML = '';
-
     if (messages?.length) {
         for (const msg of messages) {
             const { data: attachments } = await window.sbClient
@@ -545,7 +797,6 @@ async function loadMessages() {
                 .select('*')
                 .eq('message_id', msg.id)
                 .maybeSingle();
-
             const isOwn = msg.sender_id === cur.id;
             let attachment = null;
             if (attachments) {
@@ -556,51 +807,45 @@ async function loadMessages() {
                     type: attachments.file_type
                 };
             }
-            displayMessageWithAttachment(msg.text, isOwn, msg.created_at, msg.id, attachment);
+            displayMessageWithAttachment(msg.text, isOwn, msg.created_at, msg.id, attachment, msg.is_read);
         }
         setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 100);
     } else {
-        // Показываем приветственное сообщение только если нет ни одного сообщения
         const welcome = document.createElement('div');
         welcome.className = 'message-container system';
         welcome.innerHTML = `<span class="message-content">💬 Напишите первое сообщение ${escapeHtml(currentChatUser?.name || 'собеседнику')}</span>`;
         messagesContainer?.appendChild(welcome);
     }
-
     updateDesktopEmptyState();
 }
 
-// =========================== 7. ОТПРАВКА И УДАЛЕНИЕ ===========================
+// =========================== 8. ОТПРАВКА И УДАЛЕНИЕ ===========================
 async function deleteMessage(msgId, el) {
     if (!msgId) return;
-
     const chatIdToUpdate = currentChatId;
-
     const { error } = await window.sbClient.from('messages').delete().eq('id', msgId);
     if (error) { console.error(error); return; }
-
     const msg = el?.closest('.message-container');
     if (msg) msg.remove();
-
     await loadUserChats();
     if (window.innerWidth <= 767) await loadMobileChats();
-
-    // Проверяем, остались ли сообщения в чате
     const remainingMessages = document.querySelectorAll('.message-container:not(.system)');
     if (remainingMessages.length === 0) {
-        // Если сообщений нет, показываем приветственное
         const welcome = document.createElement('div');
         welcome.className = 'message-container system';
         welcome.innerHTML = `<span class="message-content">💬 Напишите первое сообщение ${escapeHtml(currentChatUser?.name || 'собеседнику')}</span>`;
         messagesContainer?.appendChild(welcome);
     }
-
     if (chatIdToUpdate === currentChatId) {
         renderChatsList();
     }
 }
 
-// =========================== 8. REALTIME ПОДПИСКИ ===========================
+async function loadMobileChats() {
+    await loadUserChats();
+}
+
+// =========================== 9. REALTIME ПОДПИСКИ ===========================
 function subscribeToMessages() {
     if (messagesSubscription) window.sbClient.removeChannel(messagesSubscription);
     messagesSubscription = window.sbClient.channel('messages-realtime')
@@ -609,12 +854,9 @@ function subscribeToMessages() {
             const { data: { user: cur } } = await window.sbClient.auth.getUser();
             if (!cur) return;
             const isOwn = msg.sender_id === cur.id;
-            // Удаляем системное сообщение при первом сообщении в чате
             if (msg.chat_id === currentChatId) {
-            const systemMessage = document.querySelector('.message-container.system');
-            if (systemMessage) {
-                systemMessage.remove();
-                }
+                const systemMessage = document.querySelector('.message-container.system');
+                if (systemMessage) systemMessage.remove();
             }
             if (!isOwn) {
                 const { data: profile } = await window.sbClient.from('profiles').select('username').eq('id', msg.sender_id).single();
@@ -629,28 +871,58 @@ function subscribeToMessages() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ toUserId: cur.id, title: senderName, body: messageText, icon: '/favicon.ico' })
                     });
-                } catch (pushError) { console.error('❌ Ошибка отправки push:', pushError); }
-            }
-            if (msg.chat_id === currentChatId && !isOwn) {
-                const { data: attachments } = await window.sbClient.from('attachments').select('*').eq('message_id', msg.id).maybeSingle();
-                let attachment = null;
-                if (attachments) {
-                    attachment = { url: attachments.file_url || attachments.title_id, name: attachments.file_name, size: attachments.file_size, type: attachments.file_type };
+                } catch (pushError) {
+                    console.error('❌ Ошибка отправки push:', pushError);
                 }
-                displayMessageWithAttachment(msg.text, false, msg.created_at, msg.id, attachment);
-                setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 50);
             }
-            if (!isOwn) { await loadUserChats(); }
+            if (msg.chat_id === currentChatId) {
+                if (!isOwn) {
+                    await markMessagesAsRead(currentChatId);
+                    const { data: attachments } = await window.sbClient
+                        .from('attachments')
+                        .select('*')
+                        .eq('message_id', msg.id)
+                        .maybeSingle();
+                    let attachment = null;
+                    if (attachments) {
+                        attachment = {
+                            url: attachments.file_url || attachments.title_id,
+                            name: attachments.file_name,
+                            size: attachments.file_size,
+                            type: attachments.file_type
+                        };
+                    }
+                    displayMessageWithAttachment(msg.text, false, msg.created_at, msg.id, attachment, false);
+                    setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 50);
+                }
+            }
+            if (!isOwn) {
+                await loadUserChats();
+            }
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: 'is_read=eq.true' }, async p => {
+            const updated = p.new;
+            const { data: { user: cur } } = await window.sbClient.auth.getUser();
+            if (!cur) return;
+            if (updated.sender_id === cur.id && updated.is_read === true) {
+                const messageElement = document.querySelector(`.message-container[data-message-id="${updated.id}"]`);
+                if (messageElement) {
+                    const readStatus = messageElement.querySelector('.message-read-status');
+                    if (readStatus) {
+                        readStatus.textContent = '✓✓';
+                        readStatus.classList.add('read');
+                        messageElement.classList.add('read');
+                    }
+                }
+                await loadUserChats();
+            }
         })
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, async p => {
             const del = p.old;
             const el = document.querySelector(`.message-container[data-message-id="${del.id}"]`);
             if (el) el.remove();
-
-            // Перезагружаем список чатов один раз
             await loadUserChats();
             if (window.innerWidth <= 767) await loadMobileChats();
-
             if (currentChatId === del.chat_id && messagesContainer && !messagesContainer.children.length) {
                 const welcome = document.createElement('div');
                 welcome.className = 'message-container system';
@@ -692,7 +964,43 @@ function subscribeToStatus() {
         .subscribe(s => s === 'SUBSCRIBED' && console.log('✅ Подписка на статусы активна'));
 }
 
-// =========================== 9. СТАТУС ОНЛАЙН/ОФФЛАЙН ===========================
+function subscribeToAvatars() {
+    if (avatarSubscription) window.sbClient.removeChannel(avatarSubscription);
+    avatarSubscription = window.sbClient.channel('avatars-realtime')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: 'avatar_url=neq.' }, async (payload) => {
+            const updated = payload.new;
+            if (updated.avatar_url !== undefined) {
+                avatarCache.delete(updated.id);
+                await updateAllAvatars();
+            }
+        })
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') console.log('✅ Подписка на аватары активна');
+        });
+}
+
+function subscribeToTypingStatus() {
+    if (typingSubscription) window.sbClient.removeChannel(typingSubscription);
+    typingSubscription = window.sbClient.channel('typing-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'typing_status' }, async (payload) => {
+            const newStatus = payload.new;
+            if (payload.eventType === 'DELETE' || !newStatus) return;
+            if (newStatus.chat_id !== currentChatId) return;
+            const { data: { user } } = await window.sbClient.auth.getUser();
+            if (!user || newStatus.user_id === user.id) return;
+            const chatTitle = document.getElementById('currentChatTitle');
+            if (!chatTitle) return;
+            if (newStatus.is_typing) {
+                chatTitle.innerHTML = `${currentChatUser?.name || ''} <span class="typing-indicator" style="font-size: 12px; color: #43ca00;">✍️ печатает...</span>`;
+            } else {
+                const userStatus = await getUserStatus(newStatus.user_id);
+                chatTitle.innerHTML = `${currentChatUser?.name || ''} <span class="user-status-indicator ${userStatus}"></span>`;
+            }
+        })
+        .subscribe((status) => { if (status === 'SUBSCRIBED') console.log('✅ Подписка на статусы печатания активна'); });
+}
+
+// =========================== 10. СТАТУС ОНЛАЙН/ОФФЛАЙН ===========================
 async function updateUserStatus(status) {
     const { data: { user } } = await window.sbClient.auth.getUser();
     if (!user) return;
@@ -719,7 +1027,30 @@ function stopStatusTracking() {
     updateUserStatus('offline');
 }
 
-// =========================== 10. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК И ПОИСК ===========================
+// =========================== 11. СТАТУС "ПЕЧАТАЕТ" ===========================
+async function updateTypingStatus(chatId, isTyping) {
+    if (!window.sbClient || !chatId) return;
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) return;
+    try { await window.sbClient.from('typing_status').upsert({ user_id: user.id, chat_id: chatId, is_typing: isTyping, updated_at: new Date().toISOString() }, { onConflict: 'user_id,chat_id' }); }
+    catch (err) { console.error('Ошибка:', err); }
+}
+
+function sendTypingStatus() {
+    if (!currentChatId) return;
+    if (isTypingCurrently) return;
+    isTypingCurrently = true;
+    updateTypingStatus(currentChatId, true);
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => { isTypingCurrently = false; updateTypingStatus(currentChatId, false); }, 2000);
+}
+
+function resetTypingStatus() {
+    if (typingTimeout) clearTimeout(typingTimeout);
+    if (isTypingCurrently) { isTypingCurrently = false; if (currentChatId) updateTypingStatus(currentChatId, false); }
+}
+
+// =========================== 12. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК И ПОИСК ===========================
 function switchTab(tab) {
     activeTab = tab;
     const chats = document.getElementById('chatsList'), users = document.getElementById('usersListContainer');
@@ -741,21 +1072,17 @@ function setupSearch() {
     input.addEventListener('input', e => { searchQuery = e.target.value; activeTab === 'chats' ? renderChatsList() : renderUsersList(); });
 }
 
-// =========================== 11. МОДАЛЬНЫЕ ОКНА ===========================
+// =========================== 13. МОДАЛЬНЫЕ ОКНА ===========================
 document.querySelector('.profile-icon')?.addEventListener('click', () => currentChatUser ? showUserProfileModal(currentChatUser.id, currentChatUser.name) : alert('Сначала выберите собеседника'));
 
 async function showProfileModal() {
     const { data: { user } } = await window.sbClient.auth.getUser();
-    if (!user) {
-        alert('Ошибка');
-        return;
-    }
-
+    if (!user) { alert('Ошибка'); return; }
     const { data: profile } = await window.sbClient.from('profiles').select('*').eq('id', user.id).single();
     const username = profile?.username || user.user_metadata?.username || localStorage.getItem('currentUsername') || 'Пользователь';
     const email = user.email || '';
     const date = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('ru-RU') : 'Неизвестно';
-
+    const avatarUrl = profile?.avatar_url || null;
     const modal = document.createElement('div');
     modal.className = 'custom-modal';
     modal.innerHTML = `<div class="custom-modal-content">
@@ -766,7 +1093,17 @@ async function showProfileModal() {
         </div>
         <div class="custom-modal-body">
             <div class="profile-avatar">
-                <ion-icon name="person-circle-outline"></ion-icon>
+                <div class="avatar-preview">
+                    ${avatarUrl ? `<img src="${avatarUrl}" alt="Avatar" class="profile-avatar-img" id="avatarPreview">` : `<ion-icon name="person-circle-outline" class="profile-avatar-icon" id="avatarPreview"></ion-icon>`}
+                </div>
+                <div class="profile-avatar-buttons">
+                    <button class="profile-change-avatar-btn" id="changeAvatarBtn" title="Изменить аватар">
+                        <ion-icon name="camera-outline"></ion-icon>
+                    </button>
+                    ${avatarUrl ? `<button class="profile-delete-avatar-btn" id="deleteAvatarBtn" title="Удалить аватар">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>` : ''}
+                </div>
             </div>
             <div class="profile-field">
                 <label>👤 Имя пользователя</label>
@@ -789,51 +1126,107 @@ async function showProfileModal() {
             <button id="saveProfileBtn" class="modal-btn">💾 Сохранить изменения</button>
         </div>
     </div>`;
-
     document.body.appendChild(modal);
-
     const closeBtn = modal.querySelector('.modal-close-btn');
-    if (closeBtn) {
-        closeBtn.onclick = () => modal.remove();
-    }
-
-    modal.onclick = (e) => {
-        if (e.target === modal) modal.remove();
-    };
-
+    if (closeBtn) closeBtn.onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     const save = modal.querySelector('#saveProfileBtn');
     const nameInput = modal.querySelector('#profileName');
-
+    const changeAvatarBtn = modal.querySelector('#changeAvatarBtn');
+    const deleteAvatarBtn = modal.querySelector('#deleteAvatarBtn');
+    const avatarInput = document.createElement('input');
+    avatarInput.type = 'file';
+    avatarInput.accept = 'image/*';
+    avatarInput.style.display = 'none';
+    modal.appendChild(avatarInput);
+    if (changeAvatarBtn) {
+        changeAvatarBtn.onclick = () => { avatarInput.click(); };
+        avatarInput.onchange = async (e) => {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                const newAvatarUrl = await uploadAvatar(file);
+                if (newAvatarUrl) {
+                    const avatarPreview = modal.querySelector('#avatarPreview');
+                    if (avatarPreview) {
+                        if (avatarPreview.tagName === 'ION-ICON') {
+                            const img = document.createElement('img');
+                            img.id = 'avatarPreview';
+                            img.className = 'profile-avatar-img';
+                            img.src = newAvatarUrl;
+                            img.alt = 'Avatar';
+                            avatarPreview.parentNode.replaceChild(img, avatarPreview);
+                        } else {
+                            avatarPreview.src = newAvatarUrl;
+                        }
+                    }
+                    const buttonsDiv = modal.querySelector('.profile-avatar-buttons');
+                    if (buttonsDiv && !modal.querySelector('#deleteAvatarBtn')) {
+                        const newDeleteBtn = document.createElement('button');
+                        newDeleteBtn.className = 'profile-delete-avatar-btn';
+                        newDeleteBtn.id = 'deleteAvatarBtn';
+                        newDeleteBtn.title = 'Удалить аватар';
+                        newDeleteBtn.innerHTML = '<ion-icon name="trash-outline"></ion-icon>';
+                        buttonsDiv.appendChild(newDeleteBtn);
+                        newDeleteBtn.onclick = async () => {
+                            if (confirm('Удалить аватар?')) {
+                                const deleted = await deleteAvatar();
+                                if (deleted) {
+                                    const preview = modal.querySelector('#avatarPreview');
+                                    if (preview && preview.tagName === 'IMG') {
+                                        const icon = document.createElement('ion-icon');
+                                        icon.name = 'person-circle-outline';
+                                        icon.id = 'avatarPreview';
+                                        icon.className = 'profile-avatar-icon';
+                                        preview.parentNode.replaceChild(icon, preview);
+                                    }
+                                    newDeleteBtn.remove();
+                                    await updateAllAvatars();
+                                }
+                            }
+                        };
+                    }
+                    await updateAllAvatars();
+                }
+            }
+            avatarInput.value = '';
+        };
+    }
+    if (deleteAvatarBtn) {
+        deleteAvatarBtn.onclick = async () => {
+            if (confirm('Удалить аватар?')) {
+                const deleted = await deleteAvatar();
+                if (deleted) {
+                    const avatarPreview = modal.querySelector('#avatarPreview');
+                    if (avatarPreview && avatarPreview.tagName === 'IMG') {
+                        const icon = document.createElement('ion-icon');
+                        icon.name = 'person-circle-outline';
+                        icon.id = 'avatarPreview';
+                        icon.className = 'profile-avatar-icon';
+                        avatarPreview.parentNode.replaceChild(icon, avatarPreview);
+                    }
+                    deleteAvatarBtn.remove();
+                    await updateAllAvatars();
+                }
+            }
+        };
+    }
     if (save && nameInput) {
         save.onclick = async () => {
             const newName = nameInput.value.trim();
-            if (!newName || newName.length < 2) {
-                alert('❌ Имя должно быть не менее 2 символов');
-                return;
-            }
+            if (!newName || newName.length < 2) { alert('❌ Имя должно быть не менее 2 символов'); return; }
             save.disabled = true;
             save.textContent = '⏳ Сохранение...';
-
             const { error } = await window.sbClient.from('profiles').update({ username: newName }).eq('id', user.id);
-            if (error) {
-                alert('❌ Ошибка: ' + error.message);
-                save.disabled = false;
-                save.textContent = '💾 Сохранить изменения';
-                return;
-            }
-
+            if (error) { alert('❌ Ошибка: ' + error.message); save.disabled = false; save.textContent = '💾 Сохранить изменения'; return; }
             await window.sbClient.auth.updateUser({ data: { username: newName } });
             localStorage.setItem('currentUsername', newName);
-
             if (currentChatUser?.id === user.id) {
                 currentChatUser.name = newName;
                 const title = document.getElementById('currentChatTitle');
                 if (title) title.textContent = newName;
             }
-
             await loadUsers();
             await loadUserChats();
-
             alert('✅ Имя изменено!');
             modal.remove();
         };
@@ -852,53 +1245,49 @@ async function showSettingsModal() {
             </div>
             <div class="custom-modal-body">
                 <div class="settings-item">
-                    <label>Уведомления</label>
+                    <label>🔔 Уведомления</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="notificationsCheckbox" ${localStorage.getItem('notifications') !== 'false' ? 'checked' : ''}>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
                 <div class="settings-item">
-                    <label>Звук сообщений</label>
+                    <label>🔊 Звук сообщений</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="soundCheckbox" ${localStorage.getItem('sound') !== 'false' ? 'checked' : ''}>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
                 <div class="settings-item">
-                    <label>Тёмная тема</label>
+                    <label>🌙 Тёмная тема</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="darkThemeCheckbox" ${localStorage.getItem('darkTheme') === 'true' ? 'checked' : ''}>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
                 <div class="settings-item">
-                    <label>Push-уведомления</label>
+                    <label>📱 Push-уведомления (закрытый браузер)</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="pushNotificationsCheckbox">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
+                <div class="settings-item" id="testPushItem" style="display: none;">
+                    <button id="testPushBtn" class="modal-btn" style="margin-top: 0; background: #43ca00;">📨 Отправить тестовое уведомление</button>
+                </div>
+                <div class="settings-info" style="margin-top: 12px; padding: 12px; background: var(--gray-light); border-radius: 12px; font-size: 12px; color: var(--gray-text);">
+                    <ion-icon name="information-circle-outline" style="vertical-align: middle;"></ion-icon>
+                    Push-уведомления работают даже при закрытом браузере. Для их работы необходимо разрешить уведомления в браузере.
+                </div>
             </div>
         </div>
     `;
-
     document.body.appendChild(modal);
-
     const closeBtn = modal.querySelector('.modal-close-btn');
-    if (closeBtn) {
-        closeBtn.onclick = () => modal.remove();
-    }
-
-    modal.onclick = (e) => {
-        if (e.target === modal) modal.remove();
-    };
-
+    if (closeBtn) closeBtn.onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     const notificationsCheckbox = modal.querySelector('#notificationsCheckbox');
-    if (notificationsCheckbox) {
-        notificationsCheckbox.onchange = (e) => localStorage.setItem('notifications', e.target.checked);
-    }
-
+    if (notificationsCheckbox) notificationsCheckbox.onchange = (e) => localStorage.setItem('notifications', e.target.checked);
     const soundCheckbox = modal.querySelector('#soundCheckbox');
     if (soundCheckbox) {
         soundCheckbox.onchange = (e) => {
@@ -906,34 +1295,47 @@ async function showSettingsModal() {
             localStorage.setItem('sound', e.target.checked);
         };
     }
-
     const darkThemeCheckbox = modal.querySelector('#darkThemeCheckbox');
     if (darkThemeCheckbox) {
         darkThemeCheckbox.onchange = (e) => {
-            if (e.target.checked) {
-                document.body.classList.add('dark');
-                localStorage.setItem('darkTheme', 'true');
-            } else {
-                document.body.classList.remove('dark');
-                localStorage.setItem('darkTheme', 'false');
-            }
+            if (e.target.checked) { document.body.classList.add('dark'); localStorage.setItem('darkTheme', 'true'); }
+            else { document.body.classList.remove('dark'); localStorage.setItem('darkTheme', 'false'); }
         };
     }
-
     const pushCheckbox = modal.querySelector('#pushNotificationsCheckbox');
+    const testPushItem = modal.querySelector('#testPushItem');
     if (pushCheckbox) {
-        if (!swRegistration) await registerServiceWorker();
-        const isSubscribed = await checkPushSubscription();
-        pushCheckbox.checked = isSubscribed;
-        pushCheckbox.onchange = async (e) => {
-            if (e.target.checked) {
-                await subscribeToPush();
-            } else {
-                await unsubscribeFromPush();
-            }
-            pushCheckbox.checked = await checkPushSubscription();
-        };
+        if (!checkPushSupport()) {
+            pushCheckbox.disabled = true;
+            pushCheckbox.parentElement.style.opacity = '0.5';
+            const info = modal.querySelector('.settings-info');
+            if (info) info.innerHTML += '<br>⚠️ Ваш браузер не поддерживает push-уведомления.';
+        } else {
+            await registerServiceWorker();
+            const isSubscribed = await checkPushSubscription();
+            pushCheckbox.checked = isSubscribed;
+            if (isSubscribed) testPushItem.style.display = 'block';
+            pushCheckbox.onchange = async (e) => {
+                if (e.target.checked) {
+                    const permission = await requestNotificationPermission();
+                    if (!permission) {
+                        alert('❌ Необходимо разрешить уведомления в браузере');
+                        e.target.checked = false;
+                        return;
+                    }
+                    const success = await subscribeToPush();
+                    if (success) testPushItem.style.display = 'block';
+                    else e.target.checked = false;
+                } else {
+                    await unsubscribeFromPush();
+                    testPushItem.style.display = 'none';
+                }
+                pushCheckbox.checked = await checkPushSubscription();
+            };
+        }
     }
+    const testPushBtn = modal.querySelector('#testPushBtn');
+    if (testPushBtn) testPushBtn.onclick = async () => { await testPushNotification(); };
 }
 
 async function showUserProfileModal(uid, uname) {
@@ -941,15 +1343,39 @@ async function showUserProfileModal(uid, uname) {
     const { data: profile } = await window.sbClient.from('profiles').select('*').eq('id', uid).single();
     if (!profile) { alert('Не удалось загрузить профиль'); return; }
     const date = profile.created_at ? new Date(profile.created_at).toLocaleDateString('ru-RU') : 'Неизвестно';
+    const avatarUrl = profile.avatar_url || null;
     const modal = document.createElement('div');
     modal.className = 'custom-modal';
-    modal.innerHTML = `<div class="custom-modal-content"><div class="custom-modal-header"><ion-icon name="person-circle-outline"></ion-icon><h3>Профиль пользователя</h3><button class="modal-close-btn"><ion-icon name="close-outline"></ion-icon></button></div><div class="custom-modal-body"><div class="profile-avatar"><ion-icon name="person-circle-outline"></ion-icon></div><div class="profile-field"><label>👤 Имя пользователя</label><input type="text" value="${escapeHtml(profile.username || uname || 'Пользователь')}" disabled></div><div class="profile-field"><label>📅 Дата регистрации</label><input type="text" value="${date}" disabled></div><div class="profile-status"><ion-icon name="chatbubble-outline"></ion-icon><span>Ваш собеседник</span></div></div></div>`;
+    modal.innerHTML = `<div class="custom-modal-content">
+        <div class="custom-modal-header">
+            <ion-icon name="person-circle-outline"></ion-icon>
+            <h3>Профиль пользователя</h3>
+            <button class="modal-close-btn"><ion-icon name="close-outline"></ion-icon></button>
+        </div>
+        <div class="custom-modal-body">
+            <div class="profile-avatar">
+                ${avatarUrl ? `<img src="${avatarUrl}" alt="${escapeHtml(profile.username || uname || 'Пользователь')}" class="profile-avatar-img">` : `<ion-icon name="person-circle-outline" style="font-size: 80px; color: var(--primary);"></ion-icon>`}
+            </div>
+            <div class="profile-field">
+                <label>👤 Имя пользователя</label>
+                <input type="text" value="${escapeHtml(profile.username || uname || 'Пользователь')}" disabled>
+            </div>
+            <div class="profile-field">
+                <label>📅 Дата регистрации</label>
+                <input type="text" value="${date}" disabled>
+            </div>
+            <div class="profile-status">
+                <ion-icon name="chatbubble-outline"></ion-icon>
+                <span>Ваш собеседник</span>
+            </div>
+        </div>
+    </div>`;
     document.body.appendChild(modal);
     modal.querySelector('.modal-close-btn').onclick = () => modal.remove();
     modal.onclick = e => { if (e.target === modal) modal.remove(); };
 }
 
-// =========================== 12. ФУНКЦИИ ДЛЯ ОТПРАВКИ СООБЩЕНИЙ ===========================
+// =========================== 14. ФУНКЦИИ ДЛЯ ОТПРАВКИ СООБЩЕНИЙ ===========================
 function autoResizeTextarea() {
     if (!messageInput) return;
     messageInput.style.height = 'auto';
@@ -1121,17 +1547,14 @@ function openPhotoViewer(url) {
     if (viewer && viewerImg) { viewerImg.src = url; viewer.style.display = 'flex'; }
 }
 
-function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachment) {
-    // Удаляем системное сообщение "Напишите первое сообщение", если оно есть
+function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachment, isRead = false) {
     const systemMessage = document.querySelector('.message-container.system');
-    if (systemMessage) {
-        systemMessage.remove();
-    }
-
+    if (systemMessage) systemMessage.remove();
     const container = document.createElement('div');
     container.className = 'message-container';
     container.setAttribute('data-message-id', messageId);
     if (!isOwn) container.classList.add('other');
+    if (isOwn && isRead) container.classList.add('read');
     const time = createdAt ? new Date(createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : getShortTime();
     let innerHTML = '';
     if (text && text.trim()) innerHTML += `<span class="message-content">${escapeHtml(text)}</span>`;
@@ -1143,22 +1566,27 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
         const isAudio = fileType.startsWith('audio/');
         const shortName = truncateFileName(fileName, window.innerWidth <= 480 ? 20 : 35);
         const downloadBtn = `<button class="file-download-btn" onclick="event.stopPropagation(); downloadFile('${attachment.url}', '${escapeHtml(fileName)}')"><ion-icon name="download-outline"></ion-icon></button>`;
-        if (isImage) { innerHTML += `<div class="message-attachment"><img src="${attachment.url}" alt="${escapeHtml(fileName)}" loading="lazy" onclick="openPhotoViewer('${attachment.url}')">${downloadBtn}</div>`; }
-        else if (isVideo) { innerHTML += `<div class="message-attachment video-attachment"><video controls preload="metadata" class="video-player"><source src="${attachment.url}" type="${fileType}"></video><div class="file-info"><div class="file-name">🎬 ${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`; }
-        else if (isAudio) { innerHTML += `<div class="message-attachment audio-attachment"><div class="audio-player-wrapper"><audio controls preload="metadata" class="audio-player"><source src="${attachment.url}" type="${fileType}"></audio></div><div class="file-info"><div class="file-name">🎵 ${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`; }
-        else { innerHTML += `<div class="message-attachment"><div class="file-icon"><ion-icon name="document-outline"></ion-icon></div><div class="file-info"><div class="file-name">${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`; }
+        if (isImage) {
+            innerHTML += `<div class="message-attachment"><img src="${attachment.url}" alt="${escapeHtml(fileName)}" loading="lazy" onclick="openPhotoViewer('${attachment.url}')">${downloadBtn}</div>`;
+        } else if (isVideo) {
+            innerHTML += `<div class="message-attachment video-attachment"><video controls preload="metadata" class="video-player"><source src="${attachment.url}" type="${fileType}"></video><div class="file-info"><div class="file-name">🎬 ${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`;
+        } else if (isAudio) {
+            innerHTML += `<div class="message-attachment audio-attachment"><div class="audio-player-wrapper"><audio controls preload="metadata" class="audio-player"><source src="${attachment.url}" type="${fileType}"></audio></div><div class="file-info"><div class="file-name">🎵 ${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`;
+        } else {
+            innerHTML += `<div class="message-attachment"><div class="file-icon"><ion-icon name="document-outline"></ion-icon></div><div class="file-info"><div class="file-name">${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`;
+        }
     }
-    innerHTML += `<span class="message-time">${time}</span>`;
-    if (isOwn) innerHTML += `<button class="message-delete-btn" onclick="deleteMessage('${messageId}', this.parentElement)"><ion-icon name="close-outline"></ion-icon></button>`;
+    let readReceipt = '';
+    if (isOwn) {
+        readReceipt = `<span class="message-read-status ${isRead ? 'read' : 'sent'}">${isRead ? '✓✓' : '✓'}</span>`;
+    }
+    innerHTML += `<span class="message-time">${time} ${readReceipt}</span>`;
+    if (isOwn) {
+        innerHTML += `<button class="message-delete-btn" onclick="deleteMessage('${messageId}', this.parentElement)"><ion-icon name="close-outline"></ion-icon></button>`;
+    }
     container.innerHTML = innerHTML;
     messagesContainer?.appendChild(container);
-
-    // Прокручиваем к новому сообщению
-    setTimeout(() => {
-        if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-    }, 50);
+    setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50);
 }
 
 async function sendMessage() {
@@ -1171,13 +1599,8 @@ async function sendMessage() {
     pendingFile = null;
     const preview = document.getElementById('previewContainer');
     if (preview) preview.remove();
-
-    // Удаляем системное сообщение перед отправкой
     const systemMessage = document.querySelector('.message-container.system');
-    if (systemMessage) {
-        systemMessage.remove();
-    }
-
+    if (systemMessage) systemMessage.remove();
     try {
         const { data: { user: currentUser } } = await window.sbClient.auth.getUser();
         if (!currentUser) { isSending = false; return; }
@@ -1191,44 +1614,246 @@ async function sendMessage() {
             attachment = await uploadFile(fileToSend);
             if (!attachment) { alert('Не удалось загрузить файл'); isSending = false; return; }
         }
-        const { data, error } = await window.sbClient.from('messages').insert({ chat_id: currentChatId, sender_id: currentUser.id, receiver_id: currentChatUser.id, text: value || '' }).select().single();
-        if (error) { console.error('❌ Ошибка:', error); alert('Ошибка: ' + error.message); isSending = false; return; }
-        if (attachment && data) { await window.sbClient.from('attachments').insert({ message_id: data.id, file_url: attachment.url, file_name: attachment.name, file_size: attachment.size, file_type: attachment.type }); }
-        displayMessageWithAttachment(value, true, data.created_at, data.id, attachment);
+        const { data, error } = await window.sbClient
+            .from('messages')
+            .insert({
+                chat_id: currentChatId,
+                sender_id: currentUser.id,
+                receiver_id: currentChatUser.id,
+                text: value || '',
+                is_read: false
+            })
+            .select()
+            .single();
+        if (error) {
+            console.error('❌ Ошибка:', error);
+            alert('Ошибка: ' + error.message);
+            isSending = false;
+            return;
+        }
+        if (attachment && data) {
+            await window.sbClient.from('attachments').insert({
+                message_id: data.id,
+                file_url: attachment.url,
+                file_name: attachment.name,
+                file_size: attachment.size,
+                file_type: attachment.type
+            });
+        }
+        displayMessageWithAttachment(value, true, data.created_at, data.id, attachment, false);
         messageInput.value = '';
         autoResizeTextarea();
         updateCharCounter();
         await loadUserChats();
         if (window.innerWidth <= 767) await loadMobileChats();
         setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50);
-    } catch (err) { console.error('❌ Ошибка:', err); }
-    finally { isSending = false; }
+    } catch (err) {
+        console.error('❌ Ошибка:', err);
+    } finally {
+        isSending = false;
+    }
 }
 
-// =========================== 13. НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ ===========================
-if (registerBtn) registerBtn.onclick = e => { e.preventDefault(); registerWindow.classList.remove('close'); loginWindow.classList.add('close'); };
-if (loginBtn) loginBtn.onclick = e => { e.preventDefault(); loginWindow.classList.remove('close'); registerWindow.classList.add('close'); };
-if (enterBtn) enterBtn.onclick = enterChat;
-if (regBtn) regBtn.onclick = registerUser;
-if (sendButton) sendButton.addEventListener('click', sendMessage);
-
-const addEnterHandler = (el, cb) => el?.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); cb(); } });
-addEnterHandler(loginUsername, enterChat);
-addEnterHandler(loginPassword, enterChat);
-addEnterHandler(regUsername, registerUser);
-addEnterHandler(regEmail, registerUser);
-addEnterHandler(regPassword, registerUser);
-
-if (messageInput) messageInput.addEventListener('focus', () => setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 300));
-const setMobileHeight = () => { const m = document.getElementById('messager'); if (m) m.style.height = window.innerHeight + 'px'; };
-window.addEventListener('resize', setMobileHeight);
-setMobileHeight();
-
-// =========================== 14. ФУНКЦИИ ДЛЯ TELEGRAM-СТИЛЯ ===========================
-function closeChatOnMobile() {
-    if (window.innerWidth <= 767) {
-        document.querySelector('.chat').classList.remove('chat-opened');
+// =========================== 15. PUSH-УВЕДОМЛЕНИЯ ===========================
+async function getVapidPublicKey() {
+    try {
+        const response = await fetch('/api/vapid-public-key');
+        const data = await response.json();
+        return data.publicKey;
+    } catch (error) {
+        console.error('❌ Ошибка получения VAPID ключа:', error);
+        return VAPID_PUBLIC_KEY;
     }
+}
+
+async function saveSubscriptionToServer(subscription) {
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) { console.log('❌ Пользователь не авторизован'); return false; }
+    try {
+        const response = await fetch('/api/save-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, subscription: subscription })
+        });
+        if (response.ok) {
+            console.log('✅ Подписка сохранена на сервере');
+            return true;
+        } else {
+            console.error('❌ Ошибка сохранения на сервере');
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сети при сохранении подписки:', error);
+        return false;
+    }
+}
+
+async function subscribeToPush() {
+    if (!checkPushSupport()) {
+        console.log('❌ Push не поддерживается в этом браузере');
+        if (confirm('Ваш браузер не поддерживает push-уведомления. Хотите включить обычные уведомления?')) {
+            await requestNotificationPermission();
+        }
+        return false;
+    }
+    if (Notification.permission !== 'granted') {
+        const permission = await requestNotificationPermission();
+        if (!permission) {
+            alert('❌ Необходимо разрешить уведомления в браузере для получения push-уведомлений');
+            return false;
+        }
+    }
+    if (!swRegistration) {
+        const registered = await registerServiceWorker();
+        if (!registered) {
+            alert('Service Worker не зарегистрирован');
+            return false;
+        }
+    }
+    try {
+        let subscription = await swRegistration.pushManager.getSubscription();
+        if (subscription) {
+            console.log('✅ Подписка уже существует:', subscription);
+            await saveSubscriptionToServer(subscription);
+            localStorage.setItem('pushEnabled', 'true');
+            setTimeout(() => { testPushNotification(); }, 1000);
+            return true;
+        }
+        const publicKey = await getVapidPublicKey();
+        const convertedKey = urlBase64ToUint8Array(publicKey);
+        subscription = await swRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedKey
+        });
+        console.log('✅ Push-подписка создана', subscription);
+        await saveSubscriptionToServer(subscription);
+        localStorage.setItem('pushEnabled', 'true');
+        await testPushNotification();
+        alert('✅ Push-уведомления включены! Теперь вы будете получать уведомления даже при закрытом браузере');
+        return true;
+    } catch (error) {
+        console.error('❌ Ошибка подписки:', error);
+        if (error.name === 'NotAllowedError') alert('⚠️ Необходимо разрешить уведомления в настройках браузера');
+        else if (error.name === 'InvalidStateError') alert('⚠️ Service Worker не готов. Попробуйте обновить страницу (F5)');
+        else if (error.message.includes('ApplicationServerKey')) alert('⚠️ Ошибка ключа шифрования. Попробуйте перезагрузить страницу');
+        else alert('❌ Ошибка подключения push: ' + error.message);
+        return false;
+    }
+}
+
+async function unsubscribeFromPush() {
+    if (!swRegistration) { await registerServiceWorker(); }
+    if (!swRegistration) return false;
+    try {
+        const subscription = await swRegistration.pushManager.getSubscription();
+        if (subscription) {
+            await subscription.unsubscribe();
+            const { data: { user } } = await window.sbClient.auth.getUser();
+            if (user) {
+                await fetch('/api/delete-subscription', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id })
+                });
+            }
+            localStorage.setItem('pushEnabled', 'false');
+            console.log('✅ Push-подписка удалена');
+            alert('❌ Push-уведомления отключены');
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('❌ Ошибка отписки:', error);
+        return false;
+    }
+}
+
+async function checkPushSubscription() {
+    if (!checkPushSupport()) return false;
+    if (!swRegistration) { await registerServiceWorker(); }
+    if (!swRegistration) return false;
+    try {
+        const subscription = await swRegistration.pushManager.getSubscription();
+        const isSubscribed = !!subscription;
+        if (isSubscribed !== (localStorage.getItem('pushEnabled') === 'true')) {
+            localStorage.setItem('pushEnabled', isSubscribed);
+        }
+        return isSubscribed;
+    } catch (error) {
+        console.error('❌ Ошибка проверки подписки:', error);
+        return false;
+    }
+}
+
+async function testPushNotification() {
+    const { data: { user } } = await window.sbClient.auth.getUser();
+    if (!user) { console.log('❌ Пользователь не авторизован'); return; }
+    try {
+        const response = await fetch('/api/send-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                toUserId: user.id,
+                title: '🔔 Тестовое уведомление',
+                body: 'Если вы видите это сообщение, push-уведомления работают!',
+                requireInteraction: true,
+                data: { senderId: user.id, chatId: null, timestamp: Date.now() }
+            })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            console.log('✅ Тестовое уведомление отправлено');
+            alert('✅ Тестовое уведомление отправлено! Проверьте, пришло ли оно.');
+        } else {
+            console.error('❌ Ошибка:', result);
+            alert('❌ Ошибка отправки тестового уведомления: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        console.error('❌ Ошибка соединения:', error);
+        if (Notification.permission === 'granted') {
+            const notification = new Notification('🔔 Тест уведомлений', {
+                body: 'Если вы видите это уведомление, но push не работает - проверьте настройки браузера',
+                icon: '/favicon.ico',
+                requireInteraction: true
+            });
+            setTimeout(() => notification.close(), 5000);
+        }
+    }
+}
+
+async function downloadFile(url, filename) {
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(blobUrl); }, 100);
+    } catch (error) { console.error('Ошибка скачивания:', error); window.open(url, '_blank'); }
+    await registerServiceWorker();
+    const isSubscribed = await checkPushSubscription();
+    if (isSubscribed) {
+        localStorage.setItem('pushEnabled', 'true');
+        const subscription = await swRegistration.pushManager.getSubscription();
+        if (subscription) await saveSubscriptionToServer(subscription);
+    } else {
+        const savedPushEnabled = localStorage.getItem('pushEnabled') === 'true';
+        if (savedPushEnabled) await subscribeToPush();
+    }
+}
+
+function loadSavedTheme() {
+    const savedTheme = localStorage.getItem('darkTheme');
+    if (savedTheme === 'true') document.body.classList.add('dark');
+    else document.body.classList.remove('dark');
+}
+
+// =========================== 16. ДЕСКТОП/МОБИЛЬНЫЕ ФУНКЦИИ ===========================
+function closeChatOnMobile() {
+    if (window.innerWidth <= 767) document.querySelector('.chat').classList.remove('chat-opened');
 }
 
 function updateDesktopEmptyState() {
@@ -1251,189 +1876,53 @@ function updateDesktopEmptyState() {
     }
 }
 
-function updateDesktopEntryState() { updateDesktopEmptyState(); }
+// =========================== 17. НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ ===========================
+if (registerBtn) registerBtn.onclick = e => { e.preventDefault(); registerWindow.classList.remove('close'); loginWindow.classList.add('close'); };
+if (loginBtn) loginBtn.onclick = e => { e.preventDefault(); loginWindow.classList.remove('close'); registerWindow.classList.add('close'); };
+if (enterBtn) enterBtn.onclick = enterChat;
+if (regBtn) regBtn.onclick = registerUser;
+if (sendButton) sendButton.addEventListener('click', sendMessage);
+
+const addEnterHandler = (el, cb) => el?.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); cb(); } });
+addEnterHandler(loginUsername, enterChat);
+addEnterHandler(loginPassword, enterChat);
+addEnterHandler(regUsername, registerUser);
+addEnterHandler(regEmail, registerUser);
+addEnterHandler(regPassword, registerUser);
+
+if (messageInput) messageInput.addEventListener('focus', () => setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 300));
+const setMobileHeight = () => { const m = document.getElementById('messager'); if (m) m.style.height = window.innerHeight + 'px'; };
+window.addEventListener('resize', setMobileHeight);
+setMobileHeight();
 
 window.closeChatOnMobile = closeChatOnMobile;
 window.updateDesktopEmptyState = updateDesktopEmptyState;
-window.updateDesktopEntryState = updateDesktopEntryState;
+window.updateDesktopEntryState = updateDesktopEmptyState;
 
-if (mobileBackBtn) { mobileBackBtn.addEventListener('click', closeChatOnMobile); }
+if (mobileBackBtn) mobileBackBtn.addEventListener('click', closeChatOnMobile);
 
-// Свайпы на мобилке
 let touchStartX = 0;
 document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
 document.addEventListener('touchend', (e) => {
     if (window.innerWidth > 767) return;
     const diff = e.changedTouches[0].screenX - touchStartX;
-    if (diff < -50 && document.querySelector('.chat')?.classList.contains('chat-opened')) { closeChatOnMobile(); }
+    if (diff < -50 && document.querySelector('.chat')?.classList.contains('chat-opened')) closeChatOnMobile();
 });
 
-// =========================== 15. ОБРАБОТЧИКИ ДЛЯ КНОПОК ===========================
-// Мобильные кнопки
+// Мобильные и десктопные кнопки
 const mobileProfileBtn = document.getElementById('mobileProfileBtn');
 const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
 const mobileExitBtn = document.getElementById('mobileExitBtn');
+if (mobileProfileBtn) mobileProfileBtn.addEventListener('click', () => { showProfileModal(); if (window.innerWidth <= 767 && document.querySelector('.chat')?.classList.contains('chat-opened')) closeChatOnMobile(); });
+if (mobileSettingsBtn) mobileSettingsBtn.addEventListener('click', () => { showSettingsModal(); if (window.innerWidth <= 767 && document.querySelector('.chat')?.classList.contains('chat-opened')) closeChatOnMobile(); });
+if (mobileExitBtn) mobileExitBtn.addEventListener('click', logout);
 
-if (mobileProfileBtn) {
-    mobileProfileBtn.addEventListener('click', () => {
-        showProfileModal();
-        if (window.innerWidth <= 767 && document.querySelector('.chat')?.classList.contains('chat-opened')) {
-            closeChatOnMobile();
-        }
-    });
-}
-
-if (mobileSettingsBtn) {
-    mobileSettingsBtn.addEventListener('click', () => {
-        showSettingsModal();
-        if (window.innerWidth <= 767 && document.querySelector('.chat')?.classList.contains('chat-opened')) {
-            closeChatOnMobile();
-        }
-    });
-}
-
-if (mobileExitBtn) {
-    mobileExitBtn.addEventListener('click', logout);
-}
-
-// Десктопные кнопки
 const profileDesktopBtn = document.getElementById('profileDesktopBtn');
 const settingsDesktopBtn = document.getElementById('settingsDesktopBtn');
 const exitDesktopBtn = document.getElementById('exitDesktopBtn');
-
 if (profileDesktopBtn) profileDesktopBtn.addEventListener('click', showProfileModal);
 if (settingsDesktopBtn) settingsDesktopBtn.addEventListener('click', showSettingsModal);
 if (exitDesktopBtn) exitDesktopBtn.addEventListener('click', logout);
-
-// =========================== 16. СТАТУС "ПЕЧАТАЕТ" ===========================
-async function updateTypingStatus(chatId, isTyping) {
-    if (!window.sbClient || !chatId) return;
-    const { data: { user } } = await window.sbClient.auth.getUser();
-    if (!user) return;
-    try { await window.sbClient.from('typing_status').upsert({ user_id: user.id, chat_id: chatId, is_typing: isTyping, updated_at: new Date().toISOString() }, { onConflict: 'user_id,chat_id' }); }
-    catch (err) { console.error('Ошибка:', err); }
-}
-
-function sendTypingStatus() {
-    if (!currentChatId) return;
-    if (isTypingCurrently) return;
-    isTypingCurrently = true;
-    updateTypingStatus(currentChatId, true);
-    if (typingTimeout) clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => { isTypingCurrently = false; updateTypingStatus(currentChatId, false); }, 2000);
-}
-
-function resetTypingStatus() {
-    if (typingTimeout) clearTimeout(typingTimeout);
-    if (isTypingCurrently) { isTypingCurrently = false; if (currentChatId) updateTypingStatus(currentChatId, false); }
-}
-
-function subscribeToTypingStatus() {
-    if (typingSubscription) window.sbClient.removeChannel(typingSubscription);
-    typingSubscription = window.sbClient.channel('typing-realtime')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'typing_status' }, async (payload) => {
-            const newStatus = payload.new;
-            if (payload.eventType === 'DELETE' || !newStatus) return;
-            if (newStatus.chat_id !== currentChatId) return;
-            const { data: { user } } = await window.sbClient.auth.getUser();
-            if (!user || newStatus.user_id === user.id) return;
-            const chatTitle = document.getElementById('currentChatTitle');
-            if (!chatTitle) return;
-            if (newStatus.is_typing) { chatTitle.innerHTML = `${currentChatUser?.name || ''} <span class="typing-indicator" style="font-size: 12px; color: #43ca00;">✍️ печатает...</span>`; }
-            else { const userStatus = await getUserStatus(newStatus.user_id); chatTitle.innerHTML = `${currentChatUser?.name || ''} <span class="user-status-indicator ${userStatus}"></span>`; }
-        })
-        .subscribe((status) => { if (status === 'SUBSCRIBED') console.log('✅ Подписка на статусы печатания активна'); });
-}
-
-// =========================== 17. PUSH-УВЕДОМЛЕНИЯ ===========================
-function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
-    return outputArray;
-}
-
-async function subscribeToPush() {
-    if (!swRegistration) { await registerServiceWorker(); }
-    if (!swRegistration) { alert('Service Worker не зарегистрирован'); return false; }
-    try {
-        let subscription = await swRegistration.pushManager.getSubscription();
-        if (subscription) { console.log('Подписка уже существует'); await saveSubscriptionToServer(subscription); localStorage.setItem('pushEnabled', 'true'); alert('✅ Push-уведомления уже включены'); return true; }
-        subscription = await swRegistration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
-        console.log('✅ Push-подписка создана', subscription);
-        await saveSubscriptionToServer(subscription);
-        localStorage.setItem('pushEnabled', 'true');
-        alert('✅ Push-уведомления включены!');
-        return true;
-    } catch (error) { console.error('❌ Ошибка подписки:', error); alert('Ошибка: ' + error.message); return false; }
-}
-
-async function saveSubscriptionToServer(subscription) {
-    const { data: { user } } = await window.sbClient.auth.getUser();
-    if (!user) return false;
-    try {
-        const response = await fetch('/api/save-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id, subscription: subscription }) });
-        if (response.ok) { console.log('✅ Подписка сохранена на сервере'); return true; }
-        else { console.error('Ошибка сохранения на сервере'); return false; }
-    } catch (error) { console.error('Ошибка:', error); return false; }
-}
-
-async function unsubscribeFromPush() {
-    if (!swRegistration) return false;
-    try {
-        const subscription = await swRegistration.pushManager.getSubscription();
-        if (subscription) {
-            await subscription.unsubscribe();
-            const { data: { user } } = await window.sbClient.auth.getUser();
-            await fetch('/api/delete-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id }) });
-            localStorage.setItem('pushEnabled', 'false');
-            console.log('✅ Push-подписка удалена');
-            alert('❌ Push-уведомления отключены');
-            return true;
-        }
-    } catch (error) { console.error('Ошибка отписки:', error); }
-    return false;
-}
-
-async function checkPushSubscription() {
-    if (!swRegistration) { await registerServiceWorker(); }
-    if (!swRegistration) return false;
-    try {
-        const subscription = await swRegistration.pushManager.getSubscription();
-        const isSubscribed = !!subscription;
-        if (isSubscribed !== (localStorage.getItem('pushEnabled') === 'true')) { localStorage.setItem('pushEnabled', isSubscribed); }
-        return isSubscribed;
-    } catch (error) { console.error('Ошибка проверки подписки:', error); return false; }
-}
-
-async function downloadFile(url, filename) {
-    try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(blobUrl); }, 100);
-    } catch (error) { console.error('Ошибка скачивания:', error); window.open(url, '_blank'); }
-    await registerServiceWorker();
-    const isSubscribed = await checkPushSubscription();
-    if (isSubscribed) { localStorage.setItem('pushEnabled', 'true'); const subscription = await swRegistration.pushManager.getSubscription(); if (subscription) { await saveSubscriptionToServer(subscription); } }
-    else { const savedPushEnabled = localStorage.getItem('pushEnabled') === 'true'; if (savedPushEnabled) { await subscribeToPush(); } }
-}
-
-function loadSavedTheme() {
-    const savedTheme = localStorage.getItem('darkTheme');
-    if (savedTheme === 'true') {
-        document.body.classList.add('dark');
-    } else {
-        document.body.classList.remove('dark');
-    }
-}
 
 // =========================== 18. ЗАГРУЗКА СТРАНИЦЫ ===========================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1443,7 +1932,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (session) {
         loginWindow?.classList.add('close'); registerWindow?.classList.add('close'); chatWindow?.classList.remove('close');
         await loadUsers(); await loadUserChats();
-        subscribeToMessages(); subscribeToProfiles(); subscribeToStatus();
+        subscribeToMessages(); subscribeToProfiles(); subscribeToStatus(); subscribeToAvatars();
         startStatusTracking();
         initAttachMenu(); initMessageInput(); initEmojiPicker(); initPhotoViewer();
         loadSavedTheme();
@@ -1453,5 +1942,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
         loginWindow?.classList.remove('close'); registerWindow?.classList.add('close'); chatWindow?.classList.add('close');
     }
-    window.addEventListener('resize', () => { updateDesktopEmptyState(); if (window.innerWidth > 767) { document.querySelector('.chat')?.classList.remove('chat-opened'); } });
+    window.addEventListener('resize', () => { updateDesktopEmptyState(); if (window.innerWidth > 767) document.querySelector('.chat')?.classList.remove('chat-opened'); });
 });

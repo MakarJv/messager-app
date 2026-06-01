@@ -11,8 +11,8 @@ const WebSocket = require('ws');
 const webpush = require('web-push');
 
 // =========================== VAPID КЛЮЧИ ===========================
-const VAPID_PUBLIC_KEY = 'BC9M1hyw0UrO65wjYz-VV3Zy_GzCgH1J1Dp94pOboqRLLC4jM5LocV1CfZDF-FzzNlMtUmpkG2-ESDwIwzHGAv0';
-const VAPID_PRIVATE_KEY = 'iutXQVSDHod_azE-4btJreheWv3bnhs6W5iTSGKKkzE';
+const VAPID_PUBLIC_KEY = 'BD-Cv932C5rP0_50uvVg102h85E5HTDY1ZgSYlMpgAG9HGLI1SuYr7D5yyAEgEiB0qvBMuOfQSq8_xVB6Wh0UoQ';
+const VAPID_PRIVATE_KEY = 'Nn7DyXj20bg6C6-z64jqw38gs2uAqtvYXUJg3xXe1Mw';
 
 // Настройка web-push
 webpush.setVapidDetails(
