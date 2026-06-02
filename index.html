@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0084ff">
     <meta name="mobile-web-app-capable" content="yes">
@@ -15,7 +16,8 @@
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="src/style.css">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+    <link rel="icon"
+          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
 </head>
 <body>
 
@@ -102,7 +104,9 @@
                     Выберите чат
                 </div>
             </div>
-            <div class="profile-icon"><ion-icon name="person-circle-outline"></ion-icon></div>
+            <div class="profile-icon">
+                <ion-icon name="person-circle-outline"></ion-icon>
+            </div>
         </div>
 
         <div class="empty-chat-screen" id="emptyChatScreen">
@@ -115,13 +119,21 @@
 
         <div class="input">
             <div class="attach-wrapper">
-                <button id="attachBtn" class="attach-btn"><ion-icon name="attach-outline"></ion-icon></button>
+                <button id="attachBtn" class="attach-btn">
+                    <ion-icon name="attach-outline"></ion-icon>
+                </button>
                 <div class="attach-menu" id="attachMenu" style="display: none;">
-                    <button id="attachPhotoBtn" class="attach-menu-item"><ion-icon name="camera-outline"></ion-icon><span>Фото</span></button>
-                    <button id="attachFileBtn" class="attach-menu-item"><ion-icon name="document-outline"></ion-icon><span>Файл</span></button>
+                    <button id="attachPhotoBtn" class="attach-menu-item">
+                        <ion-icon name="camera-outline"></ion-icon>
+                        <span>Фото</span></button>
+                    <button id="attachFileBtn" class="attach-menu-item">
+                        <ion-icon name="document-outline"></ion-icon>
+                        <span>Файл</span></button>
                 </div>
             </div>
-            <button id="emojiBtn" class="emoji-btn"><ion-icon name="happy-outline"></ion-icon></button>
+            <button id="emojiBtn" class="emoji-btn">
+                <ion-icon name="happy-outline"></ion-icon>
+            </button>
             <div class="message-input-wrapper">
                 <textarea id="message" placeholder="Введите сообщение..." autocomplete="off"></textarea>
                 <div class="emoji-picker" id="emojiPicker" style="display: none;">
@@ -136,7 +148,9 @@
                 </div>
                 <div class="input-char-counter" id="charCounter"></div>
             </div>
-            <button id="sendBtn" class="send-btn"><ion-icon name="send-outline"></ion-icon></button>
+            <button id="sendBtn" class="send-btn">
+                <ion-icon name="send-outline"></ion-icon>
+            </button>
         </div>
 
         <input type="file" id="photoInput" accept="image/*" style="display: none">
@@ -144,7 +158,9 @@
 
         <div class="photo-viewer" id="photoViewer" style="display: none;">
             <div class="photo-viewer-content">
-                <button class="photo-viewer-close" id="photoViewerClose"><ion-icon name="close-outline"></ion-icon></button>
+                <button class="photo-viewer-close" id="photoViewerClose">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
                 <img id="photoViewerImg" src="" alt="">
             </div>
         </div>

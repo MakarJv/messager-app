@@ -103,14 +103,14 @@ function handleApiRequest(req, res, url) {
 
             // Сохранение push-подписки
             if (url === '/api/save-subscription') {
-                const { userId, subscription } = data;
+                const {userId, subscription} = data;
 
                 console.log(`💾 Сохранение подписки для userId: ${userId}`);
 
                 if (!userId || !subscription) {
                     console.error('❌ Отсутствуют userId или subscription');
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Missing userId or subscription' }));
+                    res.writeHead(400, {'Content-Type': 'application/json'});
+                    res.end(JSON.stringify({error: 'Missing userId or subscription'}));
                     return;
                 }
 
@@ -118,36 +118,36 @@ function handleApiRequest(req, res, url) {
                 console.log(`✅ Подписка сохранена для: ${userId}`);
                 console.log(`📊 Всего подписок в памяти: ${pushSubscriptions.size}`);
 
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, message: 'Subscription saved' }));
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.end(JSON.stringify({success: true, message: 'Subscription saved'}));
                 return;
             }
 
             // Удаление push-подписки
             if (url === '/api/delete-subscription') {
-                const { userId } = data;
+                const {userId} = data;
 
                 if (userId && pushSubscriptions.has(userId)) {
                     pushSubscriptions.delete(userId);
                     console.log(`❌ Подписка удалена для: ${userId}`);
                 }
 
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true }));
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.end(JSON.stringify({success: true}));
                 return;
             }
 
             // Отправка тестового push-уведомления
             if (url === '/api/send-push') {
-                const { toUserId, title, body: pushBody, icon } = data;
+                const {toUserId, title, body: pushBody, icon} = data;
 
                 console.log(`📨 Отправка push для: ${toUserId}`);
 
                 const subscription = pushSubscriptions.get(toUserId);
                 if (!subscription) {
                     console.error(`❌ Нет подписки для: ${toUserId}`);
-                    res.writeHead(404, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'User not subscribed' }));
+                    res.writeHead(404, {'Content-Type': 'application/json'});
+                    res.end(JSON.stringify({error: 'User not subscribed'}));
                     return;
                 }
 
@@ -155,33 +155,33 @@ function handleApiRequest(req, res, url) {
                     title: title || 'Новое сообщение',
                     body: pushBody || 'У вас новое сообщение',
                     icon: icon || '/favicon.ico',
-                    data: { url: '/', timestamp: Date.now() }
+                    data: {url: '/', timestamp: Date.now()}
                 });
 
                 try {
                     await webpush.sendNotification(subscription, payload);
                     console.log(`✅ Push успешно отправлен: ${toUserId}`);
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: true }));
+                    res.writeHead(200, {'Content-Type': 'application/json'});
+                    res.end(JSON.stringify({success: true}));
                 } catch (error) {
                     console.error(`❌ Ошибка отправки push:`, error);
                     if (error.statusCode === 410) {
                         pushSubscriptions.delete(toUserId);
                         console.log(`🗑️ Удалена недействительная подписка: ${toUserId}`);
                     }
-                    res.writeHead(500, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: error.message }));
+                    res.writeHead(500, {'Content-Type': 'application/json'});
+                    res.end(JSON.stringify({error: error.message}));
                 }
                 return;
             }
 
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'API endpoint not found' }));
+            res.writeHead(404, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify({error: 'API endpoint not found'}));
 
         } catch (error) {
             console.error('❌ API ошибка:', error);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: error.message }));
+            res.writeHead(500, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify({error: error.message}));
         }
     });
 }
@@ -207,7 +207,7 @@ const server = http.createServer((req, res) => {
         if (error) {
             if (error.code === 'ENOENT') {
                 console.log(`❌ Файл не найден: ${filePath}`);
-                res.writeHead(404, { 'Content-Type': 'text/html' });
+                res.writeHead(404, {'Content-Type': 'text/html'});
                 res.end('<h1>404 - Файл не найден</h1>');
             } else {
                 console.log(`❌ Ошибка чтения файла: ${error.code}`);
@@ -215,7 +215,7 @@ const server = http.createServer((req, res) => {
                 res.end(`Ошибка сервера: ${error.code}`);
             }
         } else {
-            res.writeHead(200, { 'Content-Type': contentType });
+            res.writeHead(200, {'Content-Type': contentType});
 
             if (contentType === 'text/html') {
                 let html = content.toString('utf-8');
@@ -229,7 +229,7 @@ const server = http.createServer((req, res) => {
 });
 
 // ========== WEBSOCKET-СЕРВЕР ДЛЯ LIVE RELOAD ==========
-const wsServer = new WebSocket.Server({ port: 3001 });
+const wsServer = new WebSocket.Server({port: 3001});
 let wsClients = [];
 
 wsServer.on('connection', (ws) => {
@@ -249,7 +249,7 @@ function watchFiles() {
     watchPaths.forEach(dir => {
         const fullPath = path.join(__dirname, dir);
         if (fs.existsSync(fullPath)) {
-            fs.watch(fullPath, { recursive: true }, (eventType, filename) => {
+            fs.watch(fullPath, {recursive: true}, (eventType, filename) => {
                 if (filename && (filename.endsWith('.html') || filename.endsWith('.css') || filename.endsWith('.js'))) {
                     console.log(`📝 Изменён файл: ${filename}`);
                     console.log('🔄 Отправляем сигнал перезагрузки...');
@@ -292,7 +292,7 @@ module.exports = {
         const subscription = pushSubscriptions.get(userId);
         if (!subscription) return false;
 
-        const payload = JSON.stringify({ title, body, icon, data: { url: '/' } });
+        const payload = JSON.stringify({title, body, icon, data: {url: '/'}});
         try {
             await webpush.sendNotification(subscription, payload);
             console.log(`📨 Push отправлен: ${userId}`);

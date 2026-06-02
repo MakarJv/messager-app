@@ -33,9 +33,13 @@
     box-sizing: border-box;
 }
 
-*:focus { outline: none; }
+*:focus {
+    outline: none;
+}
 
-html { height: -webkit-fill-available; }
+html {
+    height: -webkit-fill-available;
+}
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -54,8 +58,13 @@ body {
 }
 
 /* ----- ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ ----- */
-.close { display: none !important; }
-.hidden { display: none !important; }
+.close {
+    display: none !important;
+}
+
+.hidden {
+    display: none !important;
+}
 
 /* ============================================
    АВТОРИЗАЦИЯ (ВХОД / РЕГИСТРАЦИЯ)
@@ -122,7 +131,9 @@ body {
     font-size: 14px;
 }
 
-.container a:hover { text-decoration: underline; }
+.container a:hover {
+    text-decoration: underline;
+}
 
 /* ============================================
    ОСНОВНОЙ КОНТЕЙНЕР ЧАТА
@@ -195,7 +206,9 @@ body {
     margin: 0;
 }
 
-.search-box input::placeholder { color: var(--gray-text); }
+.search-box input::placeholder {
+    color: var(--gray-text);
+}
 
 /* Вкладки */
 .tabs {
@@ -232,7 +245,9 @@ body {
     gap: 6px;
 }
 
-.list-container.hidden { display: none; }
+.list-container.hidden {
+    display: none;
+}
 
 /* Пустое состояние */
 .empty-state {
@@ -264,9 +279,13 @@ body {
 }
 
 .chat-item:hover,
-.user-item:hover { background: var(--gray-light); }
+.user-item:hover {
+    background: var(--gray-light);
+}
 
-.chat-item.active { background: var(--primary-light); }
+.chat-item.active {
+    background: var(--primary-light);
+}
 
 .chat-avatar,
 .user-avatar {
@@ -327,7 +346,9 @@ body {
     box-shadow: 0 0 5px var(--online);
 }
 
-.user-status.offline { background: var(--gray-text); }
+.user-status.offline {
+    background: var(--gray-text);
+}
 
 /* Нижняя панель ПК */
 .desktop-footer {
@@ -348,7 +369,9 @@ body {
     color: var(--black);
 }
 
-.desktop-footer-item:hover { background: var(--gray-light); }
+.desktop-footer-item:hover {
+    background: var(--gray-light);
+}
 
 .desktop-footer-item ion-icon {
     width: 20px;
@@ -356,14 +379,18 @@ body {
     color: var(--primary);
 }
 
-.desktop-footer-item:last-child ion-icon { color: var(--red); }
+.desktop-footer-item:last-child ion-icon {
+    color: var(--red);
+}
 
 .desktop-footer-item:last-child:hover {
     background: var(--red);
     color: white;
 }
 
-.desktop-footer-item:last-child:hover ion-icon { color: white; }
+.desktop-footer-item:last-child:hover ion-icon {
+    color: white;
+}
 
 /* ============================================
    ПРАВАЯ ПАНЕЛЬ (ОБЛАСТЬ ЧАТА)
@@ -393,7 +420,9 @@ body {
     border: none;
 }
 
-.menu-btn:hover { background: var(--gray-light); }
+.menu-btn:hover {
+    background: var(--gray-light);
+}
 
 .menu-btn ion-icon {
     width: 20px;
@@ -415,7 +444,9 @@ body {
     overflow: hidden;
 }
 
-.profile-icon:hover { background: var(--gray-border); }
+.profile-icon:hover {
+    background: var(--gray-border);
+}
 
 .profile-icon ion-icon {
     width: 26px;
@@ -485,7 +516,9 @@ body {
     display: block;
 }
 
-.message-container.other .message-time { color: var(--gray-text); }
+.message-container.other .message-time {
+    color: var(--gray-text);
+}
 
 /* Кнопка удаления сообщения */
 .message-container .message-delete-btn {
@@ -505,7 +538,9 @@ body {
     z-index: 10;
 }
 
-.message-container:hover .message-delete-btn { display: flex; }
+.message-container:hover .message-delete-btn {
+    display: flex;
+}
 
 .message-container .message-delete-btn:hover {
     background: var(--red-dark);
@@ -518,7 +553,9 @@ body {
     color: white;
 }
 
-.message-container.other .message-delete-btn { display: none !important; }
+.message-container.other .message-delete-btn {
+    display: none !important;
+}
 
 /* Индикатор статуса пользователя в заголовке */
 .user-status-indicator {
@@ -534,7 +571,9 @@ body {
     box-shadow: 0 0 5px var(--online);
 }
 
-.user-status-indicator.offline { background: var(--gray-text); }
+.user-status-indicator.offline {
+    background: var(--gray-text);
+}
 
 /* Индикатор "печатает..." */
 .typing-indicator {
@@ -566,7 +605,9 @@ body {
     transition: transform 0.2s;
 }
 
-.message-attachment img:hover { transform: scale(1.02); }
+.message-attachment img:hover {
+    transform: scale(1.02);
+}
 
 .message-attachment .file-icon {
     width: 40px;
@@ -604,11 +645,15 @@ body {
 
 /* Свои сообщения - вложения */
 .message-container .message-attachment .file-name,
-.message-container .message-attachment .file-size { color: white; }
+.message-container .message-attachment .file-size {
+    color: white;
+}
 
 /* Чужие сообщения - вложения */
 .message-container.other .message-attachment .file-name,
-.message-container.other .message-attachment .file-size { color: #1a1a1a; }
+.message-container.other .message-attachment .file-size {
+    color: #1a1a1a;
+}
 
 /* Видео и аудио вложения */
 .video-attachment,
@@ -618,7 +663,9 @@ body {
 }
 
 .video-attachment .file-info,
-.audio-attachment .file-info { width: 100%; }
+.audio-attachment .file-info {
+    width: 100%;
+}
 
 .video-player {
     max-width: 300px;
@@ -633,47 +680,6 @@ body {
     min-width: 150px;
     height: 36px;
     border-radius: 20px;
-}
-
-/* Кнопка скачивания файла */
-.file-download-btn {
-    background: rgba(67, 202, 0, 0.15);
-    border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-    color: #43ca00;
-}
-
-.file-download-btn ion-icon {
-    width: 18px;
-    height: 18px;
-}
-
-.file-download-btn:hover {
-    background: #43ca00;
-    color: white;
-    transform: scale(1.05);
-}
-
-.file-download-btn:active { transform: scale(0.95); }
-
-/* Свои сообщения - кнопка скачивания */
-.message-container .file-download-btn {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
-/* Чужие сообщения - кнопка скачивания */
-.message-container.other .file-download-btn {
-    background: rgba(67, 202, 0, 0.15);
-    color: #43ca00;
 }
 
 /* ============================================
@@ -710,7 +716,9 @@ body {
     transition: var(--transition);
 }
 
-.attach-btn:hover { background: var(--gray-border); }
+.attach-btn:hover {
+    background: var(--gray-border);
+}
 
 .attach-btn ion-icon {
     width: 20px;
@@ -751,7 +759,9 @@ body {
     transition: var(--transition);
 }
 
-.attach-menu-item:hover { background: var(--gray-light); }
+.attach-menu-item:hover {
+    background: var(--gray-light);
+}
 
 .attach-menu-item ion-icon {
     width: 20px;
@@ -774,7 +784,9 @@ body {
     margin: 0;
 }
 
-.input .emoji-btn:hover { background: var(--gray-light); }
+.input .emoji-btn:hover {
+    background: var(--gray-light);
+}
 
 .input .emoji-btn ion-icon {
     width: 22px;
@@ -819,7 +831,9 @@ body {
     transition: opacity 0.2s;
 }
 
-.input-char-counter.visible { opacity: 1; }
+.input-char-counter.visible {
+    opacity: 1;
+}
 
 /* Кнопка отправки */
 #sendBtn {
@@ -905,7 +919,9 @@ body {
     border-radius: 8px;
 }
 
-.preview-container .preview-info { flex: 1; }
+.preview-container .preview-info {
+    flex: 1;
+}
 
 .preview-container .preview-name {
     font-size: 13px;
@@ -936,7 +952,9 @@ body {
     justify-content: center;
 }
 
-.preview-container .preview-remove:hover { background: rgba(255, 68, 68, 0.2); }
+.preview-container .preview-remove:hover {
+    background: rgba(255, 68, 68, 0.2);
+}
 
 /* ============================================
    ПРОСМОТР ФОТОГРАФИЙ
@@ -1055,7 +1073,9 @@ body {
     transition: var(--transition);
 }
 
-.modal-close-btn:hover { background: var(--gray-light); }
+.modal-close-btn:hover {
+    background: var(--gray-light);
+}
 
 .modal-close-btn ion-icon {
     font-size: 20px;
@@ -1109,7 +1129,9 @@ body {
     transition: all 0.2s;
 }
 
-.profile-change-avatar-btn:hover { transform: scale(1.1); }
+.profile-change-avatar-btn:hover {
+    transform: scale(1.1);
+}
 
 .profile-avatar .profile-change-avatar-btn ion-icon {
     width: 18px;
@@ -1137,11 +1159,18 @@ body {
     transition: all 0.2s;
 }
 
-.profile-change-avatar-btn { background: #43ca00; }
-.profile-delete-avatar-btn { background: #ff4444; }
+.profile-change-avatar-btn {
+    background: #43ca00;
+}
+
+.profile-delete-avatar-btn {
+    background: #ff4444;
+}
 
 .profile-change-avatar-btn:hover,
-.profile-delete-avatar-btn:hover { transform: scale(1.05); }
+.profile-delete-avatar-btn:hover {
+    transform: scale(1.05);
+}
 
 .profile-change-avatar-btn ion-icon,
 .profile-delete-avatar-btn ion-icon {
@@ -1151,7 +1180,9 @@ body {
 }
 
 /* Поля профиля */
-.profile-field { margin-bottom: 16px; }
+.profile-field {
+    margin-bottom: 16px;
+}
 
 .profile-field label {
     display: block;
@@ -1209,7 +1240,10 @@ body {
     border-bottom: 1px solid var(--gray-border);
 }
 
-.settings-item label { font-size: 15px; color: var(--black); }
+.settings-item label {
+    font-size: 15px;
+    color: var(--black);
+}
 
 .settings-item select {
     padding: 8px 12px;
@@ -1223,7 +1257,9 @@ body {
     transition: all 0.2s;
 }
 
-.settings-item input[type="checkbox"] { display: none; }
+.settings-item input[type="checkbox"] {
+    display: none;
+}
 
 /* Toggle Switch */
 .settings-item .toggle-switch {
@@ -1260,11 +1296,21 @@ body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-input[type="checkbox"]:checked + .toggle-slider { background-color: #43ca00; }
-input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(20px); }
+input[type="checkbox"]:checked + .toggle-slider {
+    background-color: #43ca00;
+}
 
-.toggle-switch:hover .toggle-slider { opacity: 0.85; }
-.toggle-switch:hover .toggle-slider:before { transform: scale(1.05); }
+input[type="checkbox"]:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+.toggle-switch:hover .toggle-slider {
+    opacity: 0.85;
+}
+
+.toggle-switch:hover .toggle-slider:before {
+    transform: scale(1.05);
+}
 
 /* Кнопки */
 .modal-btn {
@@ -1286,7 +1332,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     transform: scale(0.98);
 }
 
-.modal-btn.danger { background: var(--red); }
+.modal-btn.danger {
+    background: var(--red);
+}
 
 .settings-btn {
     padding: 6px 14px;
@@ -1362,9 +1410,15 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
 }
 
 @keyframes pulse {
-    0% { opacity: 0.6; }
-    50% { opacity: 1; }
-    100% { opacity: 0.6; }
+    0% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.6;
+    }
 }
 
 /* ============================================
@@ -1384,7 +1438,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     border-radius: 10px;
 }
 
-::-webkit-scrollbar-thumb:hover { background: var(--gray-text); }
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-text);
+}
 
 /* ============================================
    АВАТАРЫ В СПИСКАХ
@@ -1436,7 +1492,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
 }
 
-.sidebar.open { left: 0; }
+.sidebar.open {
+    left: 0;
+}
 
 .sidebar-header {
     display: flex;
@@ -1448,7 +1506,10 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     font-weight: 600;
 }
 
-.sidebar-header ion-icon { font-size: 24px; }
+.sidebar-header ion-icon {
+    font-size: 24px;
+}
+
 .sidebar-header span {
     flex: 1;
     font-size: 18px;
@@ -1467,7 +1528,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     transition: var(--transition);
 }
 
-.sidebar-close-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.sidebar-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
 
 .sidebar-search {
     display: flex;
@@ -1490,7 +1553,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     font-size: 14px;
 }
 
-.sidebar-search input::placeholder { color: var(--gray-text); }
+.sidebar-search input::placeholder {
+    color: var(--gray-text);
+}
 
 .sidebar-tabs {
     display: flex;
@@ -1528,7 +1593,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     gap: 6px;
 }
 
-.sidebar-list.hidden { display: none; }
+.sidebar-list.hidden {
+    display: none;
+}
 
 .sidebar-empty {
     display: flex;
@@ -1560,9 +1627,13 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
 }
 
 .sidebar-chat-item:hover,
-.sidebar-user-item:hover { background: var(--gray-light); }
+.sidebar-user-item:hover {
+    background: var(--gray-light);
+}
 
-.sidebar-chat-item.active { background: var(--primary-light); }
+.sidebar-chat-item.active {
+    background: var(--primary-light);
+}
 
 .sidebar-chat-avatar,
 .sidebar-user-avatar {
@@ -1617,7 +1688,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     color: var(--gray-text);
 }
 
-.sidebar-user-status.online { color: var(--online); }
+.sidebar-user-status.online {
+    color: var(--online);
+}
 
 .sidebar-footer {
     padding: 12px;
@@ -1637,7 +1710,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     color: var(--black);
 }
 
-.sidebar-footer-item:hover { background: var(--gray-light); }
+.sidebar-footer-item:hover {
+    background: var(--gray-light);
+}
 
 .sidebar-footer-item ion-icon {
     width: 20px;
@@ -1645,14 +1720,18 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     color: var(--primary);
 }
 
-.sidebar-footer-item:last-child ion-icon { color: var(--red); }
+.sidebar-footer-item:last-child ion-icon {
+    color: var(--red);
+}
 
 .sidebar-footer-item:last-child:hover {
     background: var(--red);
     color: white;
 }
 
-.sidebar-footer-item:last-child:hover ion-icon { color: white; }
+.sidebar-footer-item:last-child:hover ion-icon {
+    color: white;
+}
 
 /* ============================================
    ЭКРАН "ВЫБЕРИТЕ ЧАТ"
@@ -1687,8 +1766,13 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
    АДАПТАЦИЯ ПОД ПЛАНШЕТЫ (768px - 1024px)
    ============================================ */
 @media (min-width: 768px) and (max-width: 1024px) {
-    .chat #chats { width: 280px; }
-    .menu-btn { display: none !important; }
+    .chat #chats {
+        width: 280px;
+    }
+
+    .menu-btn {
+        display: none !important;
+    }
 }
 
 /* ============================================
@@ -1735,7 +1819,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         border-radius: 0;
     }
 
-    .chat.chat-opened #chats { transform: translateX(-100%); }
+    .chat.chat-opened #chats {
+        transform: translateX(-100%);
+    }
 
     /* Правая панель */
     .chat #messager {
@@ -1753,9 +1839,13 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         flex-direction: column;
     }
 
-    .chat.chat-opened #messager { transform: translateX(0); }
+    .chat.chat-opened #messager {
+        transform: translateX(0);
+    }
 
-    .message-container { max-width: 85% !important; }
+    .message-container {
+        max-width: 85% !important;
+    }
 
     #messageText {
         padding: 12px;
@@ -1775,10 +1865,14 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         padding-left: 12px;
     }
 
-    .menu-btn { display: flex !important; }
+    .menu-btn {
+        display: flex !important;
+    }
 
     .desktop-footer,
-    .chat .desktop-footer { display: none; }
+    .chat .desktop-footer {
+        display: none;
+    }
 
     /* Мобильный футер */
     .mobile-footer {
@@ -1803,7 +1897,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         color: var(--black);
     }
 
-    .mobile-footer-item:hover { background: var(--gray-light); }
+    .mobile-footer-item:hover {
+        background: var(--gray-light);
+    }
 
     .mobile-footer-item ion-icon {
         width: 24px;
@@ -1811,14 +1907,18 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         color: var(--primary);
     }
 
-    .mobile-footer-item:last-child ion-icon { color: var(--red); }
+    .mobile-footer-item:last-child ion-icon {
+        color: var(--red);
+    }
 
     .mobile-footer-item:last-child:hover {
         background: var(--red);
         color: white;
     }
 
-    .mobile-footer-item:last-child:hover ion-icon { color: white; }
+    .mobile-footer-item:last-child:hover ion-icon {
+        color: white;
+    }
 
     /* Кнопка назад */
     .navBar .mobile-back-btn {
@@ -1834,7 +1934,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         border-radius: 50%;
     }
 
-    .navBar .mobile-back-btn:hover { background: rgba(0, 0, 0, 0.05); }
+    .navBar .mobile-back-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
 
     .navBar .mobile-back-btn ion-icon {
         font-size: 24px;
@@ -1842,7 +1944,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
     }
 
     /* Скрываем экран выбора чата на мобилке */
-    .empty-chat-screen { display: none !important; }
+    .empty-chat-screen {
+        display: none !important;
+    }
 
     /* Эмодзи-пикер */
     .emoji-picker {
@@ -1853,7 +1957,10 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         width: 350px;
     }
 
-    .emoji-list span { font-size: 28px; padding: 4px; }
+    .emoji-list span {
+        font-size: 28px;
+        padding: 4px;
+    }
 
     /* Toggle Switch */
     .toggle-switch {
@@ -1868,7 +1975,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         bottom: 3px;
     }
 
-    input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(18px); }
+    input[type="checkbox"]:checked + .toggle-slider:before {
+        transform: translateX(18px);
+    }
 
     /* Видео/аудио */
     .video-player {
@@ -1899,7 +2008,11 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         height: 16px;
     }
 
-    .message-attachment .file-info { flex-wrap: wrap; gap: 6px; }
+    .message-attachment .file-info {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
     .message-attachment .file-info .file-name {
         width: 100%;
         flex: auto;
@@ -1928,10 +2041,21 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
 
 /* Ландшафтный режим на телефонах */
 @media (max-width: 767px) and (orientation: landscape) {
-    .message-container { max-width: 65% !important; }
-    #messageText { padding: 8px; }
-    .navBar { padding: 8px 12px; }
-    .chat .input { padding: 6px 12px; }
+    .message-container {
+        max-width: 65% !important;
+    }
+
+    #messageText {
+        padding: 8px;
+    }
+
+    .navBar {
+        padding: 8px 12px;
+    }
+
+    .chat .input {
+        padding: 6px 12px;
+    }
 }
 
 /* Очень маленькие телефоны */
@@ -1952,8 +2076,13 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         max-height: 80px;
     }
 
-    .navBar { padding: 10px 12px; }
-    .chat-title { font-size: 16px; }
+    .navBar {
+        padding: 10px 12px;
+    }
+
+    .chat-title {
+        font-size: 16px;
+    }
 
     .attach-btn,
     #sendBtn {
@@ -1989,10 +2118,15 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         flex-direction: column;
     }
 
-    #messager.empty-state-active .empty-chat-screen { display: flex !important; }
+    #messager.empty-state-active .empty-chat-screen {
+        display: flex !important;
+    }
+
     #messager.empty-state-active #messageText,
     #messager.empty-state-active .input,
-    #messager.empty-state-active .navBar { display: none; }
+    #messager.empty-state-active .navBar {
+        display: none;
+    }
 
     .empty-chat-screen {
         flex: 1;
@@ -2004,7 +2138,9 @@ input[type="checkbox"]:checked + .toggle-slider:before { transform: translateX(2
         color: var(--gray-text);
     }
 
-    .navBar .mobile-back-btn { display: none !important; }
+    .navBar .mobile-back-btn {
+        display: none !important;
+    }
 
     /* Скрываем боковое меню на ПК */
     .sidebar,
@@ -2039,12 +2175,16 @@ body.dark {
     --online: #31a24c;
 }
 
-body.dark { background: var(--bg-body); }
+body.dark {
+    background: var(--bg-body);
+}
 
 body.dark .chat #chats,
 body.dark .chat #messager,
 body.dark .container.login,
-body.dark .container.register { background: var(--white); }
+body.dark .container.register {
+    background: var(--white);
+}
 
 body.dark .navBar,
 body.dark .search-box,
@@ -2060,38 +2200,59 @@ body.dark .sidebar-search input {
 }
 
 body.dark .search-box input::placeholder,
-body.dark .sidebar-search input::placeholder { color: var(--gray-text); }
+body.dark .sidebar-search input::placeholder {
+    color: var(--gray-text);
+}
 
-body.dark .search-box ion-icon { color: var(--gray-text); }
+body.dark .search-box ion-icon {
+    color: var(--gray-text);
+}
 
-body.dark .tab { color: var(--gray-text); }
+body.dark .tab {
+    color: var(--gray-text);
+}
+
 body.dark .tab.active {
     background: var(--primary);
     color: white;
 }
 
 body.dark .chat-item,
-body.dark .user-item { background: transparent; }
+body.dark .user-item {
+    background: transparent;
+}
 
 body.dark .chat-item:hover,
-body.dark .user-item:hover { background: var(--gray-light); }
+body.dark .user-item:hover {
+    background: var(--gray-light);
+}
 
-body.dark .chat-item.active { background: var(--primary-light); }
+body.dark .chat-item.active {
+    background: var(--primary-light);
+}
 
 body.dark .chat-name,
 body.dark .user-name,
 body.dark .chat-title,
-body.dark .chats-title { color: var(--black); }
+body.dark .chats-title {
+    color: var(--black);
+}
 
-body.dark .chat-last-message { color: var(--gray-text); }
+body.dark .chat-last-message {
+    color: var(--gray-text);
+}
 
 body.dark .chat-avatar,
 body.dark .user-avatar,
-body.dark .profile-icon { background: var(--primary-light); }
+body.dark .profile-icon {
+    background: var(--primary-light);
+}
 
 body.dark .chat-avatar ion-icon,
 body.dark .user-avatar ion-icon,
-body.dark .profile-icon ion-icon { color: var(--primary); }
+body.dark .profile-icon ion-icon {
+    color: var(--primary);
+}
 
 body.dark .message-container.other {
     background: var(--gray-light);
@@ -2103,14 +2264,23 @@ body.dark .message-container.system {
     color: var(--gray-text);
 }
 
-body.dark .message-attachment { background: rgba(255, 255, 255, 0.08); }
-body.dark .message-container.other .message-attachment { background: rgba(255, 255, 255, 0.05); }
+body.dark .message-attachment {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+body.dark .message-container.other .message-attachment {
+    background: rgba(255, 255, 255, 0.05);
+}
 
 body.dark .message-container .message-attachment .file-name,
-body.dark .message-container .message-attachment .file-size { color: rgba(255, 255, 255, 0.9); }
+body.dark .message-container .message-attachment .file-size {
+    color: rgba(255, 255, 255, 0.9);
+}
 
 body.dark .message-container.other .message-attachment .file-name,
-body.dark .message-container.other .message-attachment .file-size { color: var(--black); }
+body.dark .message-container.other .message-attachment .file-size {
+    color: var(--black);
+}
 
 body.dark .chat .input {
     background: var(--white);
@@ -2128,45 +2298,79 @@ body.dark .message-input-wrapper #message:focus {
     background: var(--white);
 }
 
-body.dark .input-char-counter { color: var(--gray-text); }
+body.dark .input-char-counter {
+    color: var(--gray-text);
+}
 
 body.dark .attach-btn,
-body.dark .emoji-btn { background: transparent; }
+body.dark .emoji-btn {
+    background: transparent;
+}
 
 body.dark .attach-btn:hover,
-body.dark .emoji-btn:hover { background: var(--gray-light); }
+body.dark .emoji-btn:hover {
+    background: var(--gray-light);
+}
 
 body.dark .attach-btn ion-icon,
-body.dark .emoji-btn ion-icon { color: var(--gray-text); }
+body.dark .emoji-btn ion-icon {
+    color: var(--gray-text);
+}
 
-body.dark #sendBtn { background: var(--primary); }
-body.dark #sendBtn:hover { background: var(--primary-dark); }
+body.dark #sendBtn {
+    background: var(--primary);
+}
+
+body.dark #sendBtn:hover {
+    background: var(--primary-dark);
+}
 
 body.dark .attach-menu {
     background: var(--white);
     border: 1px solid var(--gray-border);
 }
 
-body.dark .attach-menu-item { color: var(--black); }
-body.dark .attach-menu-item:hover { background: var(--gray-light); }
+body.dark .attach-menu-item {
+    color: var(--black);
+}
+
+body.dark .attach-menu-item:hover {
+    background: var(--gray-light);
+}
 
 body.dark .emoji-picker {
     background: var(--white);
     border-color: var(--gray-border);
 }
 
-body.dark .emoji-list span:hover { background: var(--gray-light); }
+body.dark .emoji-list span:hover {
+    background: var(--gray-light);
+}
 
-body.dark .custom-modal-content { background: var(--white); }
+body.dark .custom-modal-content {
+    background: var(--white);
+}
+
 body.dark .custom-modal-header {
     background: var(--white);
     border-bottom-color: var(--gray-border);
 }
 
-body.dark .custom-modal-header h3 { color: var(--black); }
-body.dark .modal-close-btn ion-icon { color: var(--gray-text); }
-body.dark .modal-close-btn:hover { background: var(--gray-light); }
-body.dark .custom-modal-body { background: var(--white); }
+body.dark .custom-modal-header h3 {
+    color: var(--black);
+}
+
+body.dark .modal-close-btn ion-icon {
+    color: var(--gray-text);
+}
+
+body.dark .modal-close-btn:hover {
+    background: var(--gray-light);
+}
+
+body.dark .custom-modal-body {
+    background: var(--white);
+}
 
 body.dark .profile-field input {
     background: var(--gray-light);
@@ -2184,15 +2388,26 @@ body.dark .profile-field input:disabled {
     color: var(--gray-text);
 }
 
-body.dark .profile-field label { color: var(--gray-text); }
-body.dark .profile-hint { color: var(--gray-text); }
+body.dark .profile-field label {
+    color: var(--gray-text);
+}
+
+body.dark .profile-hint {
+    color: var(--gray-text);
+}
+
 body.dark .profile-status {
     background: var(--gray-light);
     color: var(--online);
 }
 
-body.dark .settings-item { border-bottom-color: var(--gray-border); }
-body.dark .settings-item label { color: var(--black); }
+body.dark .settings-item {
+    border-bottom-color: var(--gray-border);
+}
+
+body.dark .settings-item label {
+    color: var(--black);
+}
 
 body.dark .settings-item select {
     background: var(--gray-light);
@@ -2207,45 +2422,84 @@ body.dark .mobile-footer {
 }
 
 body.dark .desktop-footer-item,
-body.dark .mobile-footer-item { color: var(--black); }
+body.dark .mobile-footer-item {
+    color: var(--black);
+}
 
 body.dark .desktop-footer-item:hover,
-body.dark .mobile-footer-item:hover { background: var(--gray-light); }
+body.dark .mobile-footer-item:hover {
+    background: var(--gray-light);
+}
 
 body.dark .desktop-footer-item ion-icon,
-body.dark .mobile-footer-item ion-icon { color: var(--primary); }
+body.dark .mobile-footer-item ion-icon {
+    color: var(--primary);
+}
 
 body.dark .desktop-footer-item:last-child ion-icon,
-body.dark .mobile-footer-item:last-child ion-icon { color: var(--red); }
+body.dark .mobile-footer-item:last-child ion-icon {
+    color: var(--red);
+}
 
-body.dark ::-webkit-scrollbar-track { background: var(--gray-border); }
-body.dark ::-webkit-scrollbar-thumb { background: var(--gray-dark); }
-body.dark ::-webkit-scrollbar-thumb:hover { background: var(--gray-text); }
+body.dark ::-webkit-scrollbar-track {
+    background: var(--gray-border);
+}
+
+body.dark ::-webkit-scrollbar-thumb {
+    background: var(--gray-dark);
+}
+
+body.dark ::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-text);
+}
 
 body.dark .empty-state,
-body.dark .sidebar-empty { color: var(--gray-text); }
+body.dark .sidebar-empty {
+    color: var(--gray-text);
+}
 
 body.dark .empty-state ion-icon,
-body.dark .sidebar-empty ion-icon { color: var(--gray-border); }
+body.dark .sidebar-empty ion-icon {
+    color: var(--gray-border);
+}
 
-body.dark .preview-container { background: #2a2a3a; }
-body.dark .preview-container .preview-name { color: white; }
-body.dark .preview-container .preview-size { color: #aaa; }
+body.dark .preview-container {
+    background: #2a2a3a;
+}
 
-body.dark .typing-indicator { color: var(--primary); }
+body.dark .preview-container .preview-name {
+    color: white;
+}
+
+body.dark .preview-container .preview-size {
+    color: #aaa;
+}
+
+body.dark .typing-indicator {
+    color: var(--primary);
+}
 
 body.dark .user-status-indicator.online {
     background: var(--online);
     box-shadow: 0 0 5px var(--online);
 }
 
-body.dark .user-status-indicator.offline { background: var(--gray-text); }
+body.dark .user-status-indicator.offline {
+    background: var(--gray-text);
+}
 
-body.dark .photo-viewer { background: rgba(0, 0, 0, 0.95); }
+body.dark .photo-viewer {
+    background: rgba(0, 0, 0, 0.95);
+}
 
 /*noinspection CssInvalidPseudoSelector*/
-body.dark .audio-player::-webkit-media-controls-panel { background: #1a1a2e; }
-body.dark .video-player { background: #000; }
+body.dark .audio-player::-webkit-media-controls-panel {
+    background: #1a1a2e;
+}
+
+body.dark .video-player {
+    background: #000;
+}
 
 body.dark .file-download-btn {
     background: rgba(67, 202, 0, 0.15);
@@ -2262,8 +2516,13 @@ body.dark .message-container .file-download-btn {
     color: white;
 }
 
-body.dark .mobile-back-btn:hover { background: rgba(255, 255, 255, 0.1); }
-body.dark .mobile-back-btn ion-icon { color: var(--primary); }
+body.dark .mobile-back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .mobile-back-btn ion-icon {
+    color: var(--primary);
+}
 
 /* Плавное переключение темы */
 body,
@@ -2274,6 +2533,7 @@ body.dark .tab,
 body.dark button {
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
 }
+
 /* Добавляем в конец файла */
 
 /* Аватары в списках */
@@ -2390,6 +2650,7 @@ body.dark .profile-delete-avatar-btn {
 body.dark .profile-delete-avatar-btn {
     background: var(--red);
 }
+
 /* Добавляем в конец файла */
 
 /* Отметки о прочтении */
@@ -2543,6 +2804,7 @@ body.dark .user-status-indicator.online + .user-last-seen {
 body.dark .user-last-seen-text {
     color: var(--gray-text);
 }
+
 /* Добавьте в style.css */
 
 /* Индикатор онлайн на аватаре */
@@ -2609,6 +2871,7 @@ body.dark .user-status-badge.online {
 body.dark .user-status-badge.offline {
     background: rgba(101, 103, 107, 0.15);
 }
+
 @media (max-width: 767px) {
     .user-status-badge {
         font-size: 10px;
@@ -2622,6 +2885,7 @@ body.dark .user-status-badge.offline {
         right: 0;
     }
 }
+
 /* ============================================
    ПРЕВЬЮ ОТВЕТА НА СООБЩЕНИЕ
    ============================================ */
@@ -2807,6 +3071,7 @@ body.dark .reply-preview-message {
         height: 12px;
     }
 }
+
 /* ============================================
    КНОПКА "НАЗАД" ДЛЯ ПК
    ============================================ */
@@ -2870,4 +3135,438 @@ body.dark .desktop-back-btn ion-icon {
         opacity: 1;
         transform: translateX(0);
     }
+}
+
+/* ============================================
+   РЕДАКТИРОВАНИЕ СООБЩЕНИЙ
+   ============================================ */
+.edit-message-ui {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.edit-message-overlay {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-message-container {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.2s ease;
+}
+
+.edit-message-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-border);
+}
+
+.edit-message-header ion-icon {
+    font-size: 22px;
+    color: var(--primary);
+}
+
+.edit-message-header span {
+    flex: 1;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--black);
+}
+
+.edit-message-cancel {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.edit-message-cancel:hover {
+    background: var(--gray-light);
+}
+
+.edit-message-cancel ion-icon {
+    font-size: 18px;
+    color: var(--gray-text);
+}
+
+.edit-message-body {
+    padding: 20px;
+}
+
+.edit-message-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 1px solid var(--gray-border);
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    background: var(--gray-light);
+    color: var(--black);
+    transition: var(--transition);
+}
+
+.edit-message-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--white);
+}
+
+.edit-time-warning {
+    font-size: 12px;
+    color: var(--online);
+    margin: 12px 0;
+    padding: 8px 12px;
+    background: rgba(67, 202, 0, 0.1);
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.edit-message-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    justify-content: flex-end;
+}
+
+.edit-message-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.edit-message-btn.cancel-btn {
+    background: var(--gray-light);
+    color: var(--gray-text);
+}
+
+.edit-message-btn.cancel-btn:hover {
+    background: var(--gray-border);
+}
+
+.edit-message-btn.save-btn {
+    background: var(--primary);
+    color: white;
+}
+
+.edit-message-btn.save-btn:hover {
+    background: var(--primary-dark);
+    transform: scale(0.98);
+}
+
+.edit-message-btn.save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Кнопка редактирования на сообщении */
+.message-edit-btn {
+    position: absolute;
+    top: -8px;
+    left: 24px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: none;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    z-index: 10;
+}
+
+.message-container:hover .message-edit-btn {
+    display: flex;
+}
+
+.message-edit-btn:hover {
+    transform: scale(1.1);
+    background: var(--primary-dark);
+}
+
+.message-edit-btn ion-icon {
+    width: 14px;
+    height: 14px;
+    color: white;
+}
+
+/* Отметка о редактировании */
+.message-edited-mark {
+    font-size: 9px;
+    opacity: 0.7;
+    margin-left: 4px;
+    font-style: italic;
+}
+
+.message-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* Тёмная тема */
+body.dark .edit-message-container {
+    background: var(--white);
+}
+
+body.dark .edit-message-textarea {
+    background: var(--gray-light);
+    border-color: var(--gray-border);
+    color: var(--black);
+}
+
+body.dark .edit-message-textarea:focus {
+    background: var(--white);
+}
+
+body.dark .edit-time-warning {
+    background: rgba(67, 202, 0, 0.15);
+}
+
+/* Мобильные стили */
+@media (max-width: 767px) {
+    .edit-message-container {
+        width: 95%;
+        margin: 16px;
+    }
+
+    .edit-message-textarea {
+        min-height: 80px;
+        font-size: 13px;
+    }
+
+    .edit-message-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    .message-edit-btn {
+        width: 24px;
+        height: 24px;
+        left: 20px;
+        top: -6px;
+    }
+
+    .message-edit-btn ion-icon {
+        width: 12px;
+        height: 12px;
+    }
+}
+
+/* ============================================
+   КОНТЕКСТНОЕ МЕНЮ ДЛЯ СООБЩЕНИЙ
+   ============================================ */
+.message-context-menu {
+    position: fixed;
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    min-width: 200px;
+    max-width: calc(100vw - 20px);
+    overflow: hidden;
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    transform-origin: top left;
+    z-index: 10000;
+}
+
+.message-context-menu.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 14px;
+    color: var(--black);
+}
+
+.context-menu-item:hover {
+    background: var(--gray-light);
+}
+
+.context-menu-item.danger {
+    color: var(--red);
+}
+
+.context-menu-item.danger:hover {
+    background: rgba(255, 59, 48, 0.1);
+}
+
+.context-menu-item ion-icon {
+    font-size: 18px;
+    width: 20px;
+    height: 20px;
+}
+
+.context-menu-divider {
+    height: 1px;
+    background: var(--gray-border);
+    margin: 4px 0;
+}
+
+/* Уведомление о копировании */
+.copy-notification {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10001;
+    transition: transform 0.3s ease;
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+}
+
+.copy-notification.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.copy-notification ion-icon {
+    font-size: 18px;
+    color: var(--online);
+}
+
+/* Тёмная тема */
+body.dark .message-context-menu {
+    background: var(--white);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+body.dark .context-menu-item {
+    color: var(--black);
+}
+
+body.dark .context-menu-item:hover {
+    background: var(--gray-light);
+}
+
+body.dark .context-menu-divider {
+    background: var(--gray-border);
+}
+
+/* Мобильные стили */
+@media (max-width: 767px) {
+    .message-context-menu {
+        position: fixed;
+        min-width: 180px;
+        max-width: calc(100vw - 40px);
+    }
+
+    .context-menu-item {
+        padding: 14px 16px;
+        font-size: 15px;
+    }
+
+    .context-menu-item ion-icon {
+        font-size: 20px;
+    }
+}
+
+/* Выделение кнопки скачивания */
+.context-menu-item.download-item {
+    background: linear-gradient(135deg, rgba(67, 202, 0, 0.1), rgba(67, 202, 0, 0.05));
+    border-left: 3px solid #43ca00;
+    position: relative;
+}
+
+.context-menu-item.download-item:hover {
+    background: linear-gradient(135deg, rgba(67, 202, 0, 0.2), rgba(67, 202, 0, 0.1));
+}
+
+.context-menu-item.download-item .download-hint {
+    margin-left: auto;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.context-menu-item.download-item ion-icon {
+    color: #43ca00;
+}
+
+/* Анимация для кнопки скачивания */
+.context-menu-item.download-item {
+    transition: all 0.2s ease;
+}
+
+.context-menu-item.download-item:active {
+    transform: scale(0.98);
+}
+
+/* Тёмная тема */
+body.dark .context-menu-item.download-item {
+    background: linear-gradient(135deg, rgba(67, 202, 0, 0.15), rgba(67, 202, 0, 0.05));
+}
+
+body.dark .context-menu-item.download-item:hover {
+    background: linear-gradient(135deg, rgba(67, 202, 0, 0.25), rgba(67, 202, 0, 0.1));
+}
+
+/* Анимация для спиннера */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.copy-notification ion-icon.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Успешное уведомление */
+.copy-notification.success {
+    background: rgba(67, 202, 0, 0.95);
+}
+
+/* Ошибка */
+.copy-notification.error {
+    background: rgba(255, 59, 48, 0.95);
 }
