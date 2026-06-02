@@ -2622,3 +2622,252 @@ body.dark .user-status-badge.offline {
         right: 0;
     }
 }
+/* ============================================
+   ПРЕВЬЮ ОТВЕТА НА СООБЩЕНИЕ
+   ============================================ */
+.reply-preview {
+    margin: 8px 12px 0;
+    padding: 10px 12px;
+    background: rgba(0, 132, 255, 0.08);
+    border-left: 3px solid var(--primary);
+    border-radius: 12px;
+    animation: slideDown 0.2s ease;
+}
+
+.reply-preview-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.reply-preview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--gray-text);
+}
+
+.reply-preview-header ion-icon {
+    font-size: 14px;
+    color: var(--primary);
+}
+
+.reply-preview-header strong {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.reply-preview-header .reply-preview-cancel {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    background: var(--red);
+}
+
+.reply-preview-header .reply-preview-cancel:hover {
+    background: var(--red-dark);
+}
+
+.reply-preview-cancel ion-icon {
+    margin: 0;
+    padding: 0;
+    font-size: 20px;
+    color: var(--white);
+}
+
+.reply-preview-cancel:hover ion-icon {
+    color: #ffffff;
+}
+
+.reply-preview-message {
+    font-size: 13px;
+    color: var(--black);
+    padding-left: 22px;
+    word-break: break-word;
+}
+
+.reply-preview-text {
+    opacity: 0.8;
+    font-style: italic;
+}
+
+.reply-attachment {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--gray-text);
+}
+
+.reply-attachment ion-icon {
+    font-size: 14px;
+}
+
+/* Кнопка ответа на сообщение */
+.message-reply-btn {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: none;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    z-index: 10;
+}
+
+.message-container:hover .message-reply-btn {
+    display: flex;
+    width: 40px;
+    height: 40px;
+    right: 0;
+}
+
+.message-reply-btn:hover {
+    transform: scale(1.1);
+    background: var(--gray-border);
+}
+
+.message-reply-btn ion-icon {
+    width: 14px;
+    height: 14px;
+    color: white;
+}
+
+/* Стили для сообщения-ответа в самом сообщении */
+.message-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Тёмная тема для превью ответа */
+body.dark .reply-preview {
+    background: rgba(0, 132, 255, 0.15);
+}
+
+body.dark .reply-preview-cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .reply-preview-message {
+    color: var(--black);
+}
+
+/* Мобильные стили */
+@media (max-width: 767px) {
+    .reply-preview {
+        margin: 6px 8px 0;
+        padding: 8px 10px;
+    }
+
+    .reply-preview-header {
+        font-size: 11px;
+    }
+
+    .reply-preview-message {
+        font-size: 12px;
+        padding-left: 18px;
+    }
+
+    .message-reply-btn {
+        width: 24px;
+        height: 24px;
+        top: -6px;
+        left: -6px;
+    }
+
+    .message-reply-btn ion-icon {
+        width: 12px;
+        height: 12px;
+    }
+}
+/* ============================================
+   КНОПКА "НАЗАД" ДЛЯ ПК
+   ============================================ */
+.navBar .desktop-back-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-right: 8px;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.navBar .desktop-back-btn:hover {
+    background: var(--gray-light);
+    transform: scale(0.95);
+}
+
+.navBar .desktop-back-btn:active {
+    transform: scale(0.9);
+}
+
+.navBar .desktop-back-btn ion-icon {
+    font-size: 20px;
+    color: var(--primary);
+}
+
+/* ПК версия - показываем кнопку только когда чат открыт */
+@media (min-width: 768px) {
+    .desktop-back-btn {
+        display: none;
+    }
+
+    .desktop-back-btn.visible {
+        display: flex;
+        animation: fadeIn 0.2s forwards;
+    }
+}
+
+/* Тёмная тема */
+body.dark .desktop-back-btn:hover {
+    background: var(--gray-light);
+}
+
+body.dark .desktop-back-btn ion-icon {
+    color: var(--primary);
+}
+
+/* Анимация появления */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

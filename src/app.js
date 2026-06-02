@@ -57,6 +57,7 @@ let readReceiptsSubscription = null;
 let pushSubscription = null;
 let isPushSupported = false;
 const avatarCache = new Map();
+let replyToMessage = null;
 
 // =========================== УВЕДОМЛЕНИЯ ===========================
 function initNotificationSound() {
@@ -772,6 +773,17 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
     await markMessagesAsRead(currentChatId);
     await loadMessages();
     updateDesktopEmptyState();
+
+    // Показываем кнопку "Назад" на ПК
+    if (window.innerWidth > 767) {
+        const backBtn = document.querySelector('.desktop-back-btn');
+        if (backBtn) {
+            backBtn.style.display = 'flex';
+            backBtn.style.opacity = '0';
+            backBtn.style.animation = 'fadeIn 0.2s forwards';
+        }
+    }
+
     if (window.innerWidth <= 767) {
         document.querySelector('.chat').classList.add('chat-opened');
     }
@@ -822,7 +834,7 @@ async function loadMessages() {
     await markMessagesAsRead(currentChatId);
     const { data: messages, error: msgError } = await window.sbClient
         .from('messages')
-        .select('*')
+        .select('*, reply_to_id')
         .eq('chat_id', currentChatId)
         .order('created_at', { ascending: true });
     if (msgError) {
@@ -837,6 +849,7 @@ async function loadMessages() {
                 .select('*')
                 .eq('message_id', msg.id)
                 .maybeSingle();
+
             const isOwn = msg.sender_id === cur.id;
             let attachment = null;
             if (attachments) {
@@ -847,7 +860,26 @@ async function loadMessages() {
                     type: attachments.file_type
                 };
             }
-            displayMessageWithAttachment(msg.text, isOwn, msg.created_at, msg.id, attachment, msg.is_read);
+
+            // Получаем имя отправителя для ответа
+            let senderName = null;
+            if (msg.reply_to_id) {
+                const { data: replyMsg } = await window.sbClient
+                    .from('messages')
+                    .select('sender_id')
+                    .eq('id', msg.reply_to_id)
+                    .single();
+                if (replyMsg) {
+                    const { data: profile } = await window.sbClient
+                        .from('profiles')
+                        .select('username')
+                        .eq('id', replyMsg.sender_id)
+                        .single();
+                    senderName = profile?.username || 'Пользователь';
+                }
+            }
+
+            displayMessageWithAttachment(msg.text, isOwn, msg.created_at, msg.id, attachment, msg.is_read, senderName);
         }
         setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 100);
     } else {
@@ -905,15 +937,6 @@ function subscribeToMessages() {
                 await showNotification(senderName, messageText, `chat_${msg.sender_id}`, msg.sender_id);
                 await loadUserChats();
                 if (window.innerWidth <= 767) await loadMobileChats();
-                try {
-                    await fetch('/api/send-push', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ toUserId: cur.id, title: senderName, body: messageText, icon: '/favicon.ico' })
-                    });
-                } catch (pushError) {
-                    console.error('❌ Ошибка отправки push:', pushError);
-                }
             }
             if (msg.chat_id === currentChatId) {
                 if (!isOwn) {
@@ -1766,17 +1789,28 @@ function openPhotoViewer(url) {
     if (viewer && viewerImg) { viewerImg.src = url; viewer.style.display = 'flex'; }
 }
 
-function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachment, isRead = false) {
+function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachment, isRead = false, senderName = null) {
     const systemMessage = document.querySelector('.message-container.system');
     if (systemMessage) systemMessage.remove();
+
     const container = document.createElement('div');
     container.className = 'message-container';
     container.setAttribute('data-message-id', messageId);
     if (!isOwn) container.classList.add('other');
     if (isOwn && isRead) container.classList.add('read');
+
     const time = createdAt ? new Date(createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : getShortTime();
+
     let innerHTML = '';
-    if (text && text.trim()) innerHTML += `<span class="message-content">${escapeHtml(text)}</span>`;
+
+    // Если это ответ на сообщение
+    if (text && text.includes('\n---\n📎 Ответ на сообщение:\n')) {
+        // Сохраняем оригинальный формат
+        innerHTML += `<span class="message-content">${escapeHtml(text)}</span>`;
+    } else {
+        innerHTML += `<span class="message-content">${escapeHtml(text)}</span>`;
+    }
+
     if (attachment && attachment.url) {
         const fileType = attachment.type || '';
         const fileName = attachment.name || 'file';
@@ -1785,6 +1819,7 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
         const isAudio = fileType.startsWith('audio/');
         const shortName = truncateFileName(fileName, window.innerWidth <= 480 ? 20 : 35);
         const downloadBtn = `<button class="file-download-btn" onclick="event.stopPropagation(); downloadFile('${attachment.url}', '${escapeHtml(fileName)}')"><ion-icon name="download-outline"></ion-icon></button>`;
+
         if (isImage) {
             innerHTML += `<div class="message-attachment"><img src="${attachment.url}" alt="${escapeHtml(fileName)}" loading="lazy" onclick="openPhotoViewer('${attachment.url}')">${downloadBtn}</div>`;
         } else if (isVideo) {
@@ -1795,22 +1830,157 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
             innerHTML += `<div class="message-attachment"><div class="file-icon"><ion-icon name="document-outline"></ion-icon></div><div class="file-info"><div class="file-name">${escapeHtml(shortName)}</div><div class="file-size">${formatFileSize(attachment.size)}</div>${downloadBtn}</div></div>`;
         }
     }
+
+    // Кнопка ответа
+    const replyBtn = `<button class="message-reply-btn" onclick="event.stopPropagation(); replyToMessageById('${messageId}')" title="Ответить"><ion-icon name="return-up-back-outline"></ion-icon></button>`;
+
     let readReceipt = '';
     if (isOwn) {
         readReceipt = `<span class="message-read-status ${isRead ? 'read' : 'sent'}">${isRead ? '✓✓' : '✓'}</span>`;
     }
+
     innerHTML += `<span class="message-time">${time} ${readReceipt}</span>`;
+
     if (isOwn) {
         innerHTML += `<button class="message-delete-btn" onclick="deleteMessage('${messageId}', this.parentElement)"><ion-icon name="close-outline"></ion-icon></button>`;
     }
+
+    // Добавляем кнопку ответа (для всех сообщений, кроме своих?)
+    innerHTML += replyBtn;
+
     container.innerHTML = innerHTML;
     messagesContainer?.appendChild(container);
-    setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50);
+
+    setTimeout(() => {
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }, 50);
+}
+
+// =========================== ФУНКЦИИ ДЛЯ ОТВЕТА НА СООБЩЕНИЯ ===========================
+function setReplyToMessage(messageId, senderName, messageText, attachment = null) {
+    // Удаляем старый превью ответа если есть
+    removeReplyPreview();
+
+    replyToMessage = {
+        id: messageId,
+        senderName: senderName,
+        text: messageText,
+        attachment: attachment
+    };
+
+    // Создаем превью ответа
+    const replyPreview = document.createElement('div');
+    replyPreview.className = 'reply-preview';
+    replyPreview.id = 'replyPreview';
+
+    let previewHtml = `
+        <div class="reply-preview-content">
+            <div class="reply-preview-header">
+                <ion-icon name="return-up-back-outline"></ion-icon>
+                <span>Ответ для <strong>${escapeHtml(senderName)}</strong></span>
+                <button class="reply-preview-cancel" onclick="cancelReply()">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="reply-preview-message">
+    `;
+
+    if (attachment) {
+        const fileType = attachment.type || '';
+        if (fileType.startsWith('image/')) {
+            previewHtml += `<div class="reply-attachment"><ion-icon name="image-outline"></ion-icon> 📷 Фото</div>`;
+        } else if (fileType.startsWith('video/')) {
+            previewHtml += `<div class="reply-attachment"><ion-icon name="videocam-outline"></ion-icon> 🎬 Видео</div>`;
+        } else if (fileType.startsWith('audio/')) {
+            previewHtml += `<div class="reply-attachment"><ion-icon name="musical-notes-outline"></ion-icon> 🎵 Аудио</div>`;
+        } else {
+            previewHtml += `<div class="reply-attachment"><ion-icon name="document-outline"></ion-icon> 📎 ${escapeHtml(attachment.name || 'Файл')}</div>`;
+        }
+    } else if (messageText) {
+        const truncatedText = messageText.length > 60 ? messageText.substring(0, 57) + '...' : messageText;
+        previewHtml += `<span class="reply-preview-text">${escapeHtml(truncatedText)}</span>`;
+    }
+
+    previewHtml += `
+            </div>
+        </div>
+    `;
+
+    replyPreview.innerHTML = previewHtml;
+
+    // Вставляем перед полем ввода
+    const inputDiv = document.querySelector('.input');
+    const messagerEl = document.getElementById('messager');
+    if (messagerEl && inputDiv) {
+        messagerEl.insertBefore(replyPreview, inputDiv);
+    }
+
+    // Фокусируемся на поле ввода
+    if (messageInput) {
+        messageInput.focus();
+    }
+}
+
+function removeReplyPreview() {
+    const preview = document.getElementById('replyPreview');
+    if (preview) {
+        preview.remove();
+    }
+}
+
+function cancelReply() {
+    replyToMessage = null;
+    removeReplyPreview();
+}
+
+async function replyToMessageById(messageId) {
+    const messageElement = document.querySelector(`.message-container[data-message-id="${messageId}"]`);
+    if (!messageElement) return;
+
+    // Получаем данные сообщения
+    const messageContent = messageElement.querySelector('.message-content');
+    const messageText = messageContent ? messageContent.textContent : '';
+
+    // Определяем отправителя
+    const isOwn = messageElement.classList.contains('read') || (!messageElement.classList.contains('other'));
+    let senderName = '';
+
+    if (isOwn) {
+        const { data: { user } } = await window.sbClient.auth.getUser();
+        senderName = user?.user_metadata?.username || 'Вы';
+    } else {
+        senderName = currentChatUser?.name || 'Пользователь';
+    }
+
+    // Проверяем наличие вложения
+    const attachmentElement = messageElement.querySelector('.message-attachment');
+    let attachment = null;
+    if (attachmentElement) {
+        const img = attachmentElement.querySelector('img');
+        const video = attachmentElement.querySelector('video');
+        const audio = attachmentElement.querySelector('audio');
+        const fileInfo = attachmentElement.querySelector('.file-info');
+
+        if (img) {
+            attachment = { type: 'image/', url: img.src, name: 'Фото' };
+        } else if (video) {
+            attachment = { type: 'video/', name: 'Видео' };
+        } else if (audio) {
+            attachment = { type: 'audio/', name: 'Аудио' };
+        } else if (fileInfo) {
+            const fileName = fileInfo.querySelector('.file-name')?.textContent || 'Файл';
+            attachment = { type: 'application/', name: fileName };
+        }
+    }
+
+    setReplyToMessage(messageId, senderName, messageText, attachment);
 }
 
 async function sendMessage() {
     if (preventAutoSend || isSending) return;
-    const value = messageInput?.value.trim();
+    let value = messageInput?.value.trim();
     if (!value && !pendingFile) return;
     if (!currentChatUser) { alert('Сначала выберите собеседника'); return; }
     isSending = true;
@@ -1820,6 +1990,15 @@ async function sendMessage() {
     if (preview) preview.remove();
     const systemMessage = document.querySelector('.message-container.system');
     if (systemMessage) systemMessage.remove();
+
+    // Формируем текст с ответом если есть
+    let finalText = value || '';
+    if (replyToMessage) {
+        const replyText = replyToMessage.text || (replyToMessage.attachment ? '[Вложение]' : 'Сообщение');
+        const replyPreview = `📎 Ответ на сообщение от ${replyToMessage.senderName}:\n"${replyText.substring(0, 100)}${replyText.length > 100 ? '...' : ''}"\n---\n`;
+        finalText = replyPreview + (value ? value : '');
+    }
+
     try {
         const { data: { user: currentUser } } = await window.sbClient.auth.getUser();
         if (!currentUser) { isSending = false; return; }
@@ -1828,28 +2007,36 @@ async function sendMessage() {
             if (!chatId) { alert('Ошибка создания чата'); isSending = false; return; }
             currentChatId = chatId;
         }
+
         let attachment = null;
         if (fileToSend) {
             attachment = await uploadFile(fileToSend);
             if (!attachment) { alert('Не удалось загрузить файл'); isSending = false; return; }
         }
+
+        // Сохраняем ID сообщения на которое отвечаем
+        const replyToId = replyToMessage ? replyToMessage.id : null;
+
         const { data, error } = await window.sbClient
             .from('messages')
             .insert({
                 chat_id: currentChatId,
                 sender_id: currentUser.id,
                 receiver_id: currentChatUser.id,
-                text: value || '',
-                is_read: false
+                text: finalText || '',
+                is_read: false,
+                reply_to_id: replyToId
             })
             .select()
             .single();
+
         if (error) {
             console.error('❌ Ошибка:', error);
             alert('Ошибка: ' + error.message);
             isSending = false;
             return;
         }
+
         if (attachment && data) {
             await window.sbClient.from('attachments').insert({
                 message_id: data.id,
@@ -1859,10 +2046,15 @@ async function sendMessage() {
                 file_type: attachment.type
             });
         }
-        displayMessageWithAttachment(value, true, data.created_at, data.id, attachment, false);
+
+        displayMessageWithAttachment(finalText, true, data.created_at, data.id, attachment, false);
         messageInput.value = '';
         autoResizeTextarea();
         updateCharCounter();
+
+        // Очищаем ответ после отправки
+        cancelReply();
+
         await loadUserChats();
         if (window.innerWidth <= 767) await loadMobileChats();
         setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50);
@@ -2087,12 +2279,166 @@ function updateDesktopEmptyState() {
         if (emptyScreen) emptyScreen.style.display = 'flex';
         if (messageText) messageText.classList.add('hidden');
         if (inputDiv) inputDiv.classList.add('hidden');
+
+        // Скрываем кнопку "Назад" на ПК
+        const backBtn = document.querySelector('.desktop-back-btn');
+        if (backBtn) backBtn.style.display = 'none';
     } else {
         messagerEl.classList.remove('empty-state-active');
         if (emptyScreen) emptyScreen.style.display = 'none';
         if (messageText) messageText.classList.remove('hidden');
         if (inputDiv) inputDiv.classList.remove('hidden');
+
+        // Показываем кнопку "Назад" на ПК если чат открыт
+        if (window.innerWidth > 767 && currentChatUser) {
+            const backBtn = document.querySelector('.desktop-back-btn');
+            if (backBtn) backBtn.style.display = 'flex';
+        }
     }
+}
+
+function closeCurrentChat() {
+    if (!currentChatUser && !currentChatId) return;
+
+    // Очищаем текущий чат
+    currentChatUser = null;
+    currentChatId = null;
+
+    // Очищаем заголовок чата
+    const title = document.getElementById('currentChatTitle');
+    if (title) {
+        title.innerHTML = 'Выберите чат';
+    }
+
+    // Очищаем иконку профиля
+    const profileIcon = document.querySelector('.profile-icon');
+    if (profileIcon) {
+        profileIcon.innerHTML = '<ion-icon name="person-circle-outline"></ion-icon>';
+    }
+
+    // Очищаем сообщения
+    if (messagesContainer) {
+        messagesContainer.innerHTML = '';
+    }
+
+    // Убираем активный класс у выбранного чата
+    document.querySelectorAll('.chat-item.active, .user-item.active').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Показываем экран выбора чата
+    updateDesktopEmptyState();
+
+    // Сбрасываем статус печатания
+    resetTypingStatus();
+
+    // Отменяем ответ на сообщение если был
+    if (replyToMessage) {
+        cancelReply();
+    }
+
+    console.log('Чат закрыт');
+}
+
+// Функция для обработки клавиши ESC
+function handleEscKey(event) {
+    if (event.key === 'Escape' || event.key === 'Esc') {
+        // Закрываем модальные окна если они открыты
+        const modals = document.querySelectorAll('.custom-modal');
+        if (modals.length > 0) {
+            modals.forEach(modal => modal.remove());
+            return;
+        }
+
+        // Закрываем эмодзи-пикер
+        const emojiPicker = document.getElementById('emojiPicker');
+        if (emojiPicker && emojiPicker.style.display === 'flex') {
+            emojiPicker.style.display = 'none';
+            return;
+        }
+
+        // Закрываем меню вложений
+        const attachMenu = document.getElementById('attachMenu');
+        if (attachMenu && attachMenu.style.display === 'flex') {
+            attachMenu.style.display = 'none';
+            return;
+        }
+
+        // Закрываем просмотр фото
+        const photoViewer = document.getElementById('photoViewer');
+        if (photoViewer && photoViewer.style.display === 'flex') {
+            photoViewer.style.display = 'none';
+            return;
+        }
+
+        // На ПК закрываем текущий чат
+        if (window.innerWidth > 767 && currentChatUser) {
+            closeCurrentChat();
+        }
+
+        // На мобилке закрываем чат и возвращаемся к списку
+        if (window.innerWidth <= 767 && document.querySelector('.chat')?.classList.contains('chat-opened')) {
+            closeChatOnMobile();
+        }
+    }
+}
+
+// Функция для создания кнопки "Назад" на ПК
+function addDesktopBackButton() {
+    const navBar = document.querySelector('#messager .navBar');
+    if (!navBar) return;
+
+    // Проверяем, есть ли уже кнопка назад на ПК
+    let backBtn = navBar.querySelector('.desktop-back-btn');
+    if (!backBtn) {
+        backBtn = document.createElement('button');
+        backBtn.className = 'desktop-back-btn';
+        backBtn.setAttribute('aria-label', 'Назад к списку чатов');
+        backBtn.innerHTML = '<ion-icon name="arrow-back-outline"></ion-icon>';
+        backBtn.title = 'Назад (Esc)';
+
+        // Добавляем кнопку перед заголовком
+        const titleContainer = navBar.querySelector('div[style*="display:flex"]') || navBar.firstChild;
+        if (titleContainer && titleContainer !== backBtn) {
+            backBtn.style.display = 'none'; // Скрываем на ПК по умолчанию
+            titleContainer.insertBefore(backBtn, titleContainer.firstChild);
+        } else {
+            navBar.insertBefore(backBtn, navBar.firstChild);
+        }
+
+        // Обработчик клика по кнопке
+        backBtn.addEventListener('click', closeCurrentChat);
+    }
+
+    // Показываем/скрываем кнопку в зависимости от наличия открытого чата
+    const updateBackButtonVisibility = () => {
+        if (backBtn) {
+            if (window.innerWidth > 767 && currentChatUser) {
+                backBtn.style.display = 'flex';
+                backBtn.style.opacity = '0';
+                backBtn.style.animation = 'fadeIn 0.2s forwards';
+            } else {
+                backBtn.style.display = 'none';
+            }
+        }
+    };
+
+    // Создаем наблюдатель за изменениями currentChatUser
+    const originalOpenChat = openChatWithUser;
+    window.openChatWithUser = async function(userId, userName, existingChatId = null) {
+        await originalOpenChat(userId, userName, existingChatId);
+        updateBackButtonVisibility();
+    };
+
+    // Оригинальная функция closeCurrentChat уже обновляет видимость
+    const originalClose = closeCurrentChat;
+    window.closeCurrentChat = function() {
+        originalClose();
+        updateBackButtonVisibility();
+    };
+
+    updateBackButtonVisibility();
+    return backBtn;
 }
 
 // =========================== 17. НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ ===========================
@@ -2147,6 +2493,13 @@ if (exitDesktopBtn) exitDesktopBtn.addEventListener('click', logout);
 document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.getAttribute('data-tab'))));
     setupSearch();
+
+    // Добавляем обработчик ESC
+    document.addEventListener('keydown', handleEscKey);
+
+    // Добавляем кнопку "Назад" для ПК
+    addDesktopBackButton();
+
     const { data: { session } } = await window.sbClient.auth.getSession();
     if (session) {
         loginWindow?.classList.add('close'); registerWindow?.classList.add('close'); chatWindow?.classList.remove('close');
@@ -2161,5 +2514,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
         loginWindow?.classList.remove('close'); registerWindow?.classList.add('close'); chatWindow?.classList.add('close');
     }
-    window.addEventListener('resize', () => { updateDesktopEmptyState(); if (window.innerWidth > 767) document.querySelector('.chat')?.classList.remove('chat-opened'); });
+    window.addEventListener('resize', () => {
+        updateDesktopEmptyState();
+        if (window.innerWidth > 767) {
+            document.querySelector('.chat')?.classList.remove('chat-opened');
+            // Обновляем видимость кнопки "Назад" при изменении размера
+            const backBtn = document.querySelector('.desktop-back-btn');
+            if (backBtn) {
+                if (currentChatUser) {
+                    backBtn.style.display = 'flex';
+                } else {
+                    backBtn.style.display = 'none';
+                }
+            }
+        } else {
+            // На мобилке скрываем ПК кнопку
+            const backBtn = document.querySelector('.desktop-back-btn');
+            if (backBtn) backBtn.style.display = 'none';
+        }
+    });
 });
+// Добавьте в конец файла, чтобы функции были доступны глобально
+window.replyToMessageById = replyToMessageById;
+window.cancelReply = cancelReply;
+// Добавьте в конец app.js
+window.closeCurrentChat = closeCurrentChat;
+window.handleEscKey = handleEscKey;
