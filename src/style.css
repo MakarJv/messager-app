@@ -3570,3 +3570,501 @@ body.dark .context-menu-item.download-item:hover {
 .copy-notification.error {
     background: rgba(255, 59, 48, 0.95);
 }
+
+/* ============================================
+   ЛОАДЕРЫ И АНИМАЦИИ ЗАГРУЗКИ
+   ============================================ */
+
+/* Глобальный лоадер страницы (при начальной загрузке) */
+.page-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-body);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.page-loader.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.loader-container {
+    text-align: center;
+    animation: fadeInUp 0.5s ease;
+}
+
+.loader-spinner {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 20px;
+    position: relative;
+}
+
+.loader-spinner::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent, var(--primary), var(--primary-dark));
+    animation: spin 1.2s linear infinite;
+}
+
+.loader-spinner::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    background: var(--bg-body);
+    border-radius: 50%;
+}
+
+.loader-logo {
+    position: relative;
+    z-index: 1;
+    font-size: 32px;
+    line-height: 44px;
+}
+
+.loader-text {
+    font-size: 14px;
+    color: var(--gray-text);
+    margin-top: 20px;
+    letter-spacing: 0.5px;
+}
+
+.loader-dots {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 4px;
+}
+
+.loader-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loader-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.loader-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+/* Лоадер для кнопок */
+.btn-loader {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-loader .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+/* Лоадер для списка чатов */
+.skeleton-loader {
+    padding: 12px;
+}
+
+.skeleton-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, var(--gray-border) 25%, var(--gray-light) 50%, var(--gray-border) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-line {
+    height: 12px;
+    background: linear-gradient(90deg, var(--gray-border) 25%, var(--gray-light) 50%, var(--gray-border) 75%);
+    background-size: 200% 100%;
+    border-radius: 6px;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-line.short {
+    width: 60%;
+}
+
+.skeleton-line.long {
+    width: 80%;
+}
+
+.skeleton-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Лоадер внутри сообщений */
+.message-loader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--gray-light);
+    border-radius: 18px;
+    width: fit-content;
+    max-width: 80px;
+}
+
+.message-loader .dot {
+    width: 8px;
+    height: 8px;
+    background: var(--gray-text);
+    border-radius: 50%;
+    animation: messageTyping 1.4s infinite ease-in-out both;
+}
+
+.message-loader .dot:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.message-loader .dot:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+/* Лоадер для отправки сообщения */
+.sending-loader {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--gray-text);
+}
+
+.sending-loader .spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(0, 132, 255, 0.2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+/* Лоадер для превью изображений */
+.image-loader {
+    position: relative;
+    min-width: 100px;
+    min-height: 100px;
+    background: var(--gray-light);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-loader::after {
+    content: '';
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--gray-border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Лоадер для загрузки файлов */
+.file-upload-loader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--gray-light);
+    border-radius: 12px;
+}
+
+.file-upload-loader .progress-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--gray-border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.file-upload-loader .progress-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* Лоадер для полноэкранных действий */
+.fullscreen-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.fullscreen-loader.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.fullscreen-loader .loader-card {
+    background: var(--white);
+    padding: 30px 40px;
+    border-radius: 24px;
+    text-align: center;
+    animation: scaleIn 0.3s ease;
+}
+
+.fullscreen-loader .loader-spinner-small {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 16px;
+    border: 3px solid var(--gray-border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.fullscreen-loader .loader-text {
+    color: var(--black);
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Анимации */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+    40% {
+        transform: scale(1);
+    }
+}
+
+@keyframes messageTyping {
+    0%, 80%, 100% {
+        transform: scale(0.6);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Скелетон для списка чатов при загрузке */
+.chats-skeleton {
+    padding: 8px;
+}
+
+/* Лоадер для бесконечного скролла */
+.infinite-scroll-loader {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+}
+
+.infinite-scroll-loader .spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--gray-border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Тёмная тема для лоадеров */
+body.dark .skeleton-avatar,
+body.dark .skeleton-line,
+body.dark .image-loader {
+    background: linear-gradient(90deg, var(--gray-border) 25%, var(--gray-light) 50%, var(--gray-border) 75%);
+}
+
+body.dark .fullscreen-loader .loader-card {
+    background: var(--white);
+}
+
+body.dark .file-upload-loader {
+    background: var(--gray-light);
+}
+
+body.dark .copy-notification {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+/* ============================================
+   СТИЛИ ДЛЯ ОТРЕДАКТИРОВАННЫХ СООБЩЕНИЙ
+   ============================================ */
+
+/* Отметка о редактировании */
+.message-edited-mark {
+    font-size: 9px;
+    opacity: 0.7;
+    margin-left: 4px;
+    font-style: italic;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 1px 4px;
+    border-radius: 10px;
+}
+
+.message-container.other .message-edited-mark {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Анимация обновления сообщения */
+.message-updated {
+    animation: highlightUpdate 0.5s ease;
+}
+
+@keyframes highlightUpdate {
+    0% {
+        background: rgba(67, 202, 0, 0.3);
+        transform: scale(1.02);
+    }
+    100% {
+        background: inherit;
+        transform: scale(1);
+    }
+}
+
+/* История редактирования (при клике на "ред.") */
+.edit-history-tooltip {
+    position: fixed;
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    max-width: 300px;
+    z-index: 10000;
+    font-size: 12px;
+    border: 1px solid var(--gray-border);
+    animation: fadeIn 0.15s ease;
+}
+
+.edit-history-tooltip .edit-history-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.edit-history-tooltip .edit-history-item {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--gray-border);
+    font-size: 11px;
+    color: var(--gray-text);
+}
+
+.edit-history-tooltip .edit-history-item:last-child {
+    border-bottom: none;
+}
+
+.edit-history-tooltip .edit-history-time {
+    font-size: 10px;
+    color: var(--gray-dark);
+    margin-right: 8px;
+}
+
+/* Индикатор загрузки при редактировании */
+.message-editing-loader {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--gray-text);
+    margin-left: 6px;
+}
+
+.message-editing-loader .spinner {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--gray-border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.5s linear infinite;
+}
+
+/* Тёмная тема */
+body.dark .edit-history-tooltip {
+    background: var(--white);
+    border-color: var(--gray-border);
+}
+
+body.dark .message-edited-mark {
+    background: rgba(255, 255, 255, 0.1);
+}

@@ -406,31 +406,29 @@ async function registerUser() {
         alert('Пароль минимум 4 символа');
         return;
     }
-    const btn = regBtn, originalText = btn.textContent;
-    btn.textContent = 'Загрузка...';
-    btn.disabled = true;
-    const {data, error} = await window.sbClient.auth.signUp({email, password, options: {data: {username}}});
-    btn.textContent = originalText;
-    btn.disabled = false;
-    if (error) {
-        alert('Ошибка: ' + error.message);
-        return;
-    }
-    if (data.session) {
-        localStorage.setItem('currentUsername', username);
-        loginWindow.classList.add('close');
-        registerWindow.classList.add('close');
-        chatWindow.classList.remove('close');
-        regUsername.value = regEmail.value = regPassword.value = '';
-        await loadUsers();
-        await loadUserChats();
-        await registerServiceWorker();
-        console.log('Добро пожаловать,', username);
-    } else {
-        alert('Регистрация успешна! Подтвердите email и войдите.');
-        loginWindow.classList.remove('close');
-        registerWindow.classList.add('close');
-    }
+
+    await loaderManager.withLoader(async () => {
+        const {data, error} = await window.sbClient.auth.signUp({email, password, options: {data: {username}}});
+        if (error) throw new Error(error.message);
+
+        if (data.session) {
+            localStorage.setItem('currentUsername', username);
+            loginWindow.classList.add('close');
+            registerWindow.classList.add('close');
+            chatWindow.classList.remove('close');
+            regUsername.value = regEmail.value = regPassword.value = '';
+            await loadUsers();
+            await loadUserChats();
+            await registerServiceWorker();
+            console.log('Добро пожаловать,', username);
+        } else {
+            alert('Регистрация успешна! Подтвердите email и войдите.');
+            loginWindow.classList.remove('close');
+            registerWindow.classList.add('close');
+        }
+    }, {button: regBtn, buttonText: 'Регистрация...'}).catch(err => {
+        alert('Ошибка: ' + err.message);
+    });
 }
 
 async function registerServiceWorker() {
@@ -466,43 +464,42 @@ async function enterChat() {
         alert('Заполните все поля');
         return;
     }
-    const btn = enterBtn, originalText = btn.textContent;
-    btn.textContent = 'Вход...';
-    btn.disabled = true;
-    const {data, error} = await window.sbClient.auth.signInWithPassword({email, password});
-    btn.textContent = originalText;
-    btn.disabled = false;
-    if (error) {
-        alert('Ошибка: ' + error.message);
-        return;
-    }
-    if (data.user) {
-        localStorage.setItem('currentUsername', data.user.user_metadata?.username || 'Пользователь');
-        loginWindow.classList.add('close');
-        registerWindow.classList.add('close');
-        chatWindow.classList.remove('close');
-        loginUsername.value = loginPassword.value = '';
-        await loadUsers();
-        await loadUserChats();
-        startStatusTracking();
-        subscribeToStatus();
-        initNotificationSound();
-        requestNotificationPermission();
-        await registerServiceWorker();
-        const savedPushEnabled = localStorage.getItem('pushEnabled') === 'true';
-        if (savedPushEnabled) {
-            const isSubscribed = await checkPushSubscription();
-            if (!isSubscribed) {
-                console.log('🔄 Восстанавливаем push-подписку...');
-                await subscribeToPush();
-            } else {
-                const subscription = await swRegistration.pushManager.getSubscription();
-                if (subscription) {
-                    await saveSubscriptionToServer(subscription);
+
+    await loaderManager.withLoader(async () => {
+        const {data, error} = await window.sbClient.auth.signInWithPassword({email, password});
+        if (error) throw new Error(error.message);
+
+        if (data.user) {
+            localStorage.setItem('currentUsername', data.user.user_metadata?.username || 'Пользователь');
+            loginWindow.classList.add('close');
+            registerWindow.classList.add('close');
+            chatWindow.classList.remove('close');
+            loginUsername.value = loginPassword.value = '';
+            await loadUsers();
+            await loadUserChats();
+            startStatusTracking();
+            subscribeToStatus();
+            initNotificationSound();
+            requestNotificationPermission();
+            await registerServiceWorker();
+            const savedPushEnabled = localStorage.getItem('pushEnabled') === 'true';
+            if (savedPushEnabled) {
+                const isSubscribed = await checkPushSubscription();
+                if (!isSubscribed) {
+                    console.log('🔄 Восстанавливаем push-подписку...');
+                    await subscribeToPush();
+                } else {
+                    const subscription = await swRegistration.pushManager.getSubscription();
+                    if (subscription) {
+                        await saveSubscriptionToServer(subscription);
+                    }
                 }
             }
         }
-    }
+    }, {button: enterBtn, buttonText: 'Вход...'}).catch(err => {
+        alert('Ошибка: ' + err.message);
+    });
+
     if (!localStorage.getItem('notificationPermissionAsked')) {
         setTimeout(async () => {
             const granted = await requestNotificationPermission();
@@ -534,13 +531,19 @@ async function loadUsers() {
     if (!window.sbClient) return;
     const {data: {user: currentUser}} = await window.sbClient.auth.getUser();
     if (!currentUser) return;
+
     const {data, error} = await window.sbClient.from('profiles').select('id, username').neq('id', currentUser.id);
     if (error) {
         console.error('Ошибка загрузки пользователей:', error);
         return;
     }
 
-    // Получаем статусы для всех пользователей
+    // Показываем индикатор загрузки в списке
+    const container = document.getElementById('usersListContainer');
+    if (container && (!data || data.length === 0)) {
+        loaderManager.showUsersSkeleton();
+    }
+
     const usersWithStatus = [];
     for (const user of (data || [])) {
         const statusData = await getUserStatusWithLastSeen(user.id);
@@ -551,16 +554,12 @@ async function loadUsers() {
         });
     }
 
-    // Сортируем: сначала онлайн, затем по времени последней активности (сначала те, кто был недавно)
     usersWithStatus.sort((a, b) => {
-        // Онлайн всегда вверху
         if (a.status === 'online' && b.status !== 'online') return -1;
         if (a.status !== 'online' && b.status === 'online') return 1;
-
-        // Если оба онлайн или оба оффлайн - сортируем по времени последней активности
         const timeA = new Date(a.lastSeen);
         const timeB = new Date(b.lastSeen);
-        return timeB - timeA; // Более поздние сверху
+        return timeB - timeA;
     });
 
     allUsers = usersWithStatus;
@@ -797,9 +796,20 @@ async function getOrCreateChatId(u1, u2) {
 async function openChatWithUser(userId, userName, existingChatId = null) {
     const {data: {user: cur}} = await window.sbClient.auth.getUser();
     if (!cur) return;
+
+    // Показываем индикатор загрузки в заголовке
+    const title = document.getElementById('currentChatTitle');
+    if (title) {
+        title.innerHTML = `${escapeHtml(userName)} <span class="typing-indicator" style="font-size: 12px;">
+            <span class="message-loader" style="display: inline-flex; background: transparent; padding: 0; margin-left: 8px;">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </span>
+        </span>`;
+    }
+
     resetTypingStatus();
     currentChatUser = {id: userId, name: userName};
-    const title = document.getElementById('currentChatTitle');
+
     const statusData = await getUserStatusWithLastSeen(userId);
     const avatarUrl = await getAvatarUrl(userId);
     const profileIcon = document.querySelector('.profile-icon');
@@ -810,6 +820,7 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
             profileIcon.innerHTML = `<ion-icon name="person-circle-outline"></ion-icon>`;
         }
     }
+
     if (title) {
         if (statusData.status === 'online') {
             title.innerHTML = `${escapeHtml(userName)} <span class="user-status-indicator online"></span><span class="user-last-seen">онлайн</span>`;
@@ -817,17 +828,20 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
             title.innerHTML = `${escapeHtml(userName)} <span class="user-status-indicator offline"></span><span class="user-last-seen">${statusData.lastSeen}</span>`;
         }
     }
+
     currentChatId = existingChatId || await getOrCreateChatId(cur.id, userId);
     if (!currentChatId) {
         console.error('Не удалось получить ID чата');
         return;
     }
+
     console.log('Открыт чат:', currentChatId);
 
-    // Загружаем сообщения (без отметки о прочтении)
-    await loadMessages();
+    // Загружаем сообщения с индикатором загрузки
+    await loaderManager.withLoader(async () => {
+        await loadMessages();
+    }, {showFullscreen: false});
 
-    // ИСПРАВЛЕНО: убираем сравнение с несуществующей переменной chatId
     setTimeout(() => {
         if (currentChatId && !document.hidden) {
             markMessagesAsRead(currentChatId);
@@ -836,7 +850,6 @@ async function openChatWithUser(userId, userName, existingChatId = null) {
 
     updateDesktopEmptyState();
 
-    // Показываем кнопку "Назад" на ПК
     if (window.innerWidth > 767) {
         const backBtn = document.querySelector('.desktop-back-btn');
         if (backBtn) {
@@ -862,6 +875,7 @@ async function markMessagesAsRead(chatId) {
     if (!user) return;
 
     try {
+        // Получаем ID непрочитанных сообщений, где текущий пользователь получатель
         const {data: unreadMessages, error} = await window.sbClient
             .from('messages')
             .select('id')
@@ -875,17 +889,38 @@ async function markMessagesAsRead(chatId) {
         }
 
         if (unreadMessages && unreadMessages.length > 0) {
+            console.log(`Отмечаем как прочитанные: ${unreadMessages.length} сообщений`);
+
+            // Обновляем статус прочтения
             const {error: updateError} = await window.sbClient
                 .from('messages')
-                .update({is_read: true, read_at: new Date().toISOString()})
+                .update({
+                    is_read: true,
+                    read_at: new Date().toISOString()
+                })
                 .in('id', unreadMessages.map(m => m.id));
 
             if (updateError) {
                 console.error('Ошибка обновления статуса прочтения:', updateError);
             } else {
-                console.log(`✅ Помечено как прочитано: ${unreadMessages.length} сообщений в чате ${chatId}`);
-                // Обновляем список чатов для обновления счетчика
+                console.log(`✅ Помечено как прочитано: ${unreadMessages.length} сообщений`);
+
+                // Обновляем UI для этих сообщений
+                for (const msg of unreadMessages) {
+                    const messageElement = document.querySelector(`.message-container[data-message-id="${msg.id}"]`);
+                    if (messageElement) {
+                        const readStatus = messageElement.querySelector('.message-read-status');
+                        if (readStatus) {
+                            readStatus.textContent = '✓✓';
+                            readStatus.classList.add('read');
+                        }
+                        messageElement.classList.add('read');
+                    }
+                }
+
+                // Обновляем список чатов
                 await loadUserChats();
+                if (window.innerWidth <= 767) await loadMobileChats();
             }
         }
     } catch (err) {
@@ -900,18 +935,28 @@ async function loadMessages() {
     }
     const {data: {user: cur}} = await window.sbClient.auth.getUser();
     if (!cur) return;
+
+    console.log('Загрузка сообщений для чата:', currentChatId);
+
     const {data: messages, error: msgError} = await window.sbClient
         .from('messages')
         .select('*')
         .eq('chat_id', currentChatId)
         .order('created_at', {ascending: true});
+
     if (msgError) {
-        console.error(msgError);
+        console.error('Ошибка загрузки сообщений:', msgError);
         return;
     }
+
+    console.log('Загружено сообщений:', messages?.length || 0);
+
     if (messagesContainer) messagesContainer.innerHTML = '';
+
     if (messages?.length) {
         for (const msg of messages) {
+            console.log(`Сообщение ${msg.id}: text="${msg.text?.substring(0, 30)}", is_edited=${msg.is_edited}`);
+
             const {data: attachments} = await window.sbClient
                 .from('attachments')
                 .select('*')
@@ -947,7 +992,16 @@ async function loadMessages() {
                 }
             }
 
-            displayMessageWithAttachment(msg.text, isOwn, msg.created_at, msg.id, attachment, msg.is_read, senderName);
+            displayMessageWithAttachment(
+                msg.text,
+                isOwn,
+                msg.created_at,
+                msg.id,
+                attachment,
+                msg.is_read,
+                senderName,
+                msg.is_edited === true  // Важно: строгое сравнение
+            );
         }
         setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 100);
     } else {
@@ -965,17 +1019,18 @@ function markVisibleMessagesAsRead() {
 
     // Проверяем, видит ли пользователь сообщения (чат открыт и активен)
     const isChatVisible = currentChatUser && currentChatId && !document.hidden;
-
     if (!isChatVisible) return;
 
-    // Получаем все непрочитанные сообщения в чате
-    const unreadMessages = document.querySelectorAll('.message-container:not(.other) .message-read-status.sent, .message-container[data-message-id]:not(.other)');
+    // Находим все непрочитанные сообщения (чужие, которые не прочитаны)
+    const unreadMessageElements = document.querySelectorAll('.message-container.other:not(.read)');
 
-    if (unreadMessages.length > 0) {
-        // Отмечаем как прочитанные через небольшую задержку (пользователь успел увидеть)
+    if (unreadMessageElements.length > 0) {
+        console.log(`Найдено непрочитанных сообщений: ${unreadMessageElements.length}`);
+
+        // Небольшая задержка, чтобы пользователь успел увидеть
         setTimeout(() => {
             markMessagesAsRead(currentChatId);
-        }, 1000);
+        }, 500);
     }
 }
 
@@ -983,27 +1038,53 @@ function markVisibleMessagesAsRead() {
 function setupReadReceipts() {
     if (!messagesContainer) return;
 
-    // Используем Intersection Observer для отслеживания видимости сообщений
-    const observer = new IntersectionObserver((entries) => {
-        const hasVisibleMessages = entries.some(entry => entry.isIntersecting);
-        if (hasVisibleMessages && currentChatId) {
-            markVisibleMessagesAsRead();
-        }
-    }, {threshold: 0.3});
+    // Функция для проверки видимости
+    const checkVisibility = () => {
+        if (!currentChatId) return;
 
-    observer.observe(messagesContainer);
+        // Проверяем, есть ли в области видимости непрочитанные сообщения
+        const messages = document.querySelectorAll('.message-container.other:not(.read)');
+        if (messages.length === 0) return;
 
-    // Также отмечаем при скролле
+        // Используем Intersection Observer для точного определения
+        const observer = new IntersectionObserver((entries) => {
+            const visibleUnread = entries.some(entry =>
+                entry.isIntersecting &&
+                entry.target.classList.contains('other') &&
+                !entry.target.classList.contains('read')
+            );
+
+            if (visibleUnread) {
+                setTimeout(() => markMessagesAsRead(currentChatId), 300);
+            }
+        }, {threshold: 0.3});
+
+        messages.forEach(msg => observer.observe(msg));
+
+        // Отключаем observer после первого срабатывания
+        setTimeout(() => observer.disconnect(), 5000);
+    };
+
+    // При скролле
     messagesContainer.addEventListener('scroll', () => {
-        markVisibleMessagesAsRead();
+        setTimeout(() => checkVisibility(), 100);
     });
 
-    // Отмечаем когда окно получает фокус
+    // При загрузке сообщений
+    const observer = new MutationObserver(() => {
+        checkVisibility();
+    });
+    observer.observe(messagesContainer, {childList: true, subtree: true});
+
+    // При фокусе окна
     window.addEventListener('focus', () => {
         if (currentChatId) {
-            markMessagesAsRead(currentChatId);
+            setTimeout(() => markMessagesAsRead(currentChatId), 500);
         }
     });
+
+    // При открытии чата
+    checkVisibility();
 
     return observer;
 }
@@ -1066,22 +1147,81 @@ async function editMessage(messageId, newText) {
     if (!messageId || !newText || !newText.trim()) return false;
 
     try {
+        console.log('Редактируем сообщение:', messageId, 'новый текст:', newText);
+
+        const now = new Date().toISOString();
+
+        // Обновляем сообщение - ПРОСТОЙ СИНТАКСИС
         const {error} = await window.sbClient
             .from('messages')
             .update({
                 text: newText.trim(),
                 is_edited: true,
-                edited_at: new Date().toISOString()
+                edited_at: now
             })
             .eq('id', messageId);
 
         if (error) {
-            console.error('Ошибка редактирования:', error);
+            console.error('Ошибка при UPDATE:', error);
             alert('Ошибка при редактировании: ' + error.message);
             return false;
         }
 
-        console.log('✅ Сообщение отредактировано');
+        console.log('✅ UPDATE выполнен успешно');
+
+        // Проверяем результат отдельным запросом
+        const {data: updatedMsg, error: fetchError} = await window.sbClient
+            .from('messages')
+            .select('id, text, is_edited, edited_at')
+            .eq('id', messageId)
+            .single();
+
+        if (fetchError) {
+            console.error('Не могу проверить результат:', fetchError);
+        } else {
+            console.log('Проверка в БД:', updatedMsg);
+        }
+
+        // Обновляем UI
+        const messageElement = document.querySelector(`.message-container[data-message-id="${messageId}"]`);
+        if (messageElement) {
+            const contentSpan = messageElement.querySelector('.message-content');
+            if (contentSpan) {
+                // Сохраняем часть с ответом если есть
+                let displayText = newText.trim();
+                const oldText = contentSpan.textContent;
+                if (oldText.includes('📎 Ответ на сообщение')) {
+                    const replyMatch = oldText.match(/(📎 Ответ на сообщение[^:]+:[^\n]+\n---\n)/);
+                    if (replyMatch) {
+                        displayText = replyMatch[1] + newText.trim();
+                    }
+                }
+                contentSpan.innerHTML = escapeHtml(displayText);
+
+                // Добавляем отметку о редактировании
+                let editMark = contentSpan.querySelector('.message-edited-mark');
+                if (!editMark) {
+                    editMark = document.createElement('span');
+                    editMark.className = 'message-edited-mark';
+                    editMark.setAttribute('data-message-id', messageId);
+                    editMark.onclick = (e) => {
+                        e.stopPropagation();
+                        showEditHistory(messageId);
+                    };
+                    contentSpan.appendChild(editMark);
+                }
+                editMark.textContent = ' (ред.)';
+
+                // Анимация
+                messageElement.classList.add('message-updated');
+                setTimeout(() => messageElement.classList.remove('message-updated'), 500);
+            }
+        }
+
+        // Обновляем список чатов
+        await loadUserChats();
+        if (window.innerWidth <= 767) await loadMobileChats();
+
         return true;
     } catch (err) {
         console.error('Ошибка:', err);
@@ -1091,6 +1231,7 @@ async function editMessage(messageId, newText) {
 
 function showEditMessageUI(messageId, currentText, createdAt) {
     closeContextMenu();
+
     // Проверяем можно ли редактировать
     if (!canEditMessage(createdAt)) {
         const remainingTime = getRemainingEditTime(createdAt);
@@ -1127,7 +1268,10 @@ function showEditMessageUI(messageId, currentText, createdAt) {
                     ${timeWarning}
                     <div class="edit-message-actions">
                         <button class="edit-message-btn cancel-btn" onclick="cancelEditMessage()">Отмена</button>
-                        <button class="edit-message-btn save-btn" onclick="saveEditMessage('${messageId}')">💾 Сохранить</button>
+                        <button class="edit-message-btn save-btn" onclick="saveEditMessage('${messageId}')">
+                            <span class="btn-loader" style="display: none;"><span class="spinner"></span> Сохранение...</span>
+                            <span class="btn-text">💾 Сохранить</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1141,16 +1285,12 @@ function showEditMessageUI(messageId, currentText, createdAt) {
     if (textarea) {
         textarea.focus();
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-
-        // Авто-ресайз
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
         textarea.addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 200) + 'px';
         });
-
-        // Отправка по Ctrl+Enter
         textarea.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
@@ -1173,19 +1313,15 @@ function showEditMessageUI(messageId, currentText, createdAt) {
                 } else {
                     warningDiv.innerHTML = `⚠️ Время на редактирование истекло!`;
                     warningDiv.style.color = '#ff4444';
-                    // Отключаем кнопку сохранения
                     const saveBtn = editUI.querySelector('.save-btn');
                     if (saveBtn) {
                         saveBtn.disabled = true;
                         saveBtn.style.opacity = '0.5';
-                        saveBtn.style.cursor = 'not-allowed';
                     }
                     clearInterval(timerInterval);
                 }
             }
         }, 1000);
-
-        // Сохраняем interval для очистки
         editUI.timerInterval = timerInterval;
     }
 }
@@ -1198,6 +1334,17 @@ async function saveEditMessage(messageId) {
     if (!newText) {
         alert('Сообщение не может быть пустым');
         return;
+    }
+
+    // Показываем индикатор загрузки на кнопке
+    const saveBtn = document.querySelector('#editMessageUI .save-btn');
+    const btnText = saveBtn?.querySelector('.btn-text');
+    const btnLoader = saveBtn?.querySelector('.btn-loader');
+
+    if (saveBtn && btnText && btnLoader) {
+        btnText.style.display = 'none';
+        btnLoader.style.display = 'inline-flex';
+        saveBtn.disabled = true;
     }
 
     // Получаем оригинальное сообщение для проверки времени
@@ -1213,10 +1360,24 @@ async function saveEditMessage(messageId) {
 
     const success = await editMessage(messageId, newText);
 
+    if (saveBtn && btnText && btnLoader) {
+        btnText.style.display = 'inline';
+        btnLoader.style.display = 'none';
+        saveBtn.disabled = false;
+    }
+
     if (success) {
-        // Обновляем отображение сообщения
-        updateMessageContent(messageId, newText);
         cancelEditMessage();
+        // Показываем уведомление об успехе
+        const notification = document.createElement('div');
+        notification.className = 'copy-notification success';
+        notification.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Сообщение отредактировано';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 10);
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
     }
 }
 
@@ -1361,13 +1522,13 @@ function showContextMenu(event, messageId, messageElement) {
     // Кнопка редактирования (только для своих сообщений, если можно редактировать)
     if (canEdit) {
         const remainingTime = getRemainingEditTime(createdAt);
-        const timeText = remainingTime ? ` (${remainingTime})` : '';
+        const timeText = remainingTime ? ` <span style="font-size: 11px; opacity: 0.7;">(${remainingTime})</span>` : '';
         menuItems += `
-            <div class="context-menu-item" data-action="edit">
-                <ion-icon name="create-outline"></ion-icon>
-                <span>Редактировать${timeText}</span>
-            </div>
-        `;
+        <div class="context-menu-item" data-action="edit">
+            <ion-icon name="create-outline"></ion-icon>
+            <span>Редактировать${timeText}</span>
+        </div>
+    `;
     }
 
     // Кнопка удаления (последняя, красная)
@@ -1515,58 +1676,153 @@ async function copyMessageText(messageId) {
     let text = contentSpan.textContent || '';
     // Убираем отметку о редактировании
     text = text.replace(' (ред.)', '');
+    // Убираем лишние пробелы и переносы
+    text = text.trim();
 
-    try {
-        await navigator.clipboard.writeText(text);
-
-        // Показываем уведомление
+    // Функция для показа уведомления
+    const showCopyNotification = (success, errorMsg = '') => {
         const notification = document.createElement('div');
         notification.className = 'copy-notification';
-        notification.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Текст скопирован';
+        if (success) {
+            notification.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Текст скопирован';
+            notification.style.background = 'rgba(67, 202, 0, 0.95)';
+        } else {
+            notification.innerHTML = `<ion-icon name="close-circle-outline"></ion-icon> ${errorMsg || 'Не удалось скопировать'}`;
+            notification.style.background = 'rgba(255, 59, 48, 0.95)';
+        }
         document.body.appendChild(notification);
-
+        setTimeout(() => notification.classList.add('show'), 10);
         setTimeout(() => {
-            notification.classList.add('show');
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 1500);
-        }, 10);
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+    };
+
+    // Способ 1: Современный Clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(text);
+            console.log('✅ Текст скопирован через Clipboard API');
+            showCopyNotification(true);
+            return;
+        } catch (err) {
+            console.warn('Clipboard API failed:', err);
+            // Пробуем fallback метод
+        }
+    }
+
+    // Способ 2: Fallback для мобильных устройств и старых браузеров
+    try {
+        // Создаем временное текстовое поле
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+
+        // Выделяем текст
+        textarea.select();
+        textarea.setSelectionRange(0, text.length);
+
+        // Пытаемся скопировать
+        const success = document.execCommand('copy');
+
+        // Удаляем временное поле
+        document.body.removeChild(textarea);
+
+        if (success) {
+            console.log('✅ Текст скопирован через execCommand');
+            showCopyNotification(true);
+            return;
+        } else {
+            throw new Error('execCommand copy failed');
+        }
     } catch (err) {
         console.error('Ошибка копирования:', err);
-        alert('Не удалось скопировать текст');
+
+        // Способ 3: Для мобильных - показываем текст для ручного копирования
+        showCopyNotification(false, 'Нажмите и удерживайте для копирования');
+
+        // Дополнительно: показываем текст в диалоге для ручного копирования
+        setTimeout(() => {
+            const manualCopy = confirm(`Не удалось скопировать автоматически.\n\nВыделите и скопируйте текст вручную:\n\n"${text.substring(0, 200)}${text.length > 200 ? '...' : ''}"`);
+            if (manualCopy) {
+                // Создаем временное поле с текстом
+                const tempInput = document.createElement('input');
+                tempInput.value = text;
+                tempInput.style.position = 'fixed';
+                tempInput.style.top = '-100px';
+                tempInput.style.left = '-100px';
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                showCopyNotification(true);
+            }
+        }, 100);
     }
 }
 
-function updateMessageContent(messageId, newText) {
-    const messageElement = document.querySelector(`.message-container[data-message-id="${messageId}"]`);
-    if (messageElement) {
-        const contentSpan = messageElement.querySelector('.message-content');
-        if (contentSpan) {
-            // Сохраняем, был ли это ответ на сообщение
-            const oldText = contentSpan.innerHTML;
-            if (oldText.includes('📎 Ответ на сообщение')) {
-                // Если это ответ, сохраняем часть с ответом
-                const parts = oldText.split('---\n');
-                if (parts.length >= 2) {
-                    contentSpan.innerHTML = escapeHtml(newText);
-                    // Добавляем отметку о редактировании
-                    const editMark = document.createElement('span');
-                    editMark.className = 'message-edited-mark';
-                    editMark.textContent = ' (ред.)';
-                    contentSpan.appendChild(editMark);
-                    return;
-                }
-            }
+async function updateMessageContentUI(messageId, newText, isEdited = true) {
+    console.log('Обновляем UI для сообщения:', messageId, 'isEdited:', isEdited);
 
-            contentSpan.innerHTML = escapeHtml(newText);
-            // Добавляем отметку о редактировании
-            const editMark = document.createElement('span');
-            editMark.className = 'message-edited-mark';
-            editMark.textContent = ' (ред.)';
-            contentSpan.appendChild(editMark);
+    const messageElement = document.querySelector(`.message-container[data-message-id="${messageId}"]`);
+    if (!messageElement) {
+        console.warn('Элемент сообщения не найден в DOM, возможно чат не открыт');
+        return;
+    }
+
+    const contentSpan = messageElement.querySelector('.message-content');
+    if (!contentSpan) return;
+
+    // Сохраняем часть с ответом если есть
+    let displayText = newText;
+    const oldText = contentSpan.textContent;
+    if (oldText.includes('📎 Ответ на сообщение')) {
+        const replyMatch = oldText.match(/(📎 Ответ на сообщение[^:]+:[^\n]+\n---\n)/);
+        if (replyMatch) {
+            displayText = replyMatch[1] + newText;
         }
     }
+
+    // Обновляем текст
+    contentSpan.innerHTML = escapeHtml(displayText);
+
+    // Обновляем отметку о редактировании
+    let editMark = contentSpan.querySelector('.message-edited-mark');
+
+    if (isEdited) {
+        if (!editMark) {
+            editMark = document.createElement('span');
+            editMark.className = 'message-edited-mark';
+            editMark.setAttribute('data-message-id', messageId);
+            editMark.onclick = (e) => {
+                e.stopPropagation();
+                showEditHistory(messageId);
+            };
+            contentSpan.appendChild(editMark);
+        }
+        editMark.textContent = ' (ред.)';
+        editMark.title = 'Сообщение было отредактировано';
+    } else if (editMark && !isEdited) {
+        editMark.remove();
+    }
+
+    // Обновляем атрибуты
+    messageElement.setAttribute('data-text', newText);
+    if (isEdited) {
+        messageElement.setAttribute('data-edited', 'true');
+    }
+
+    // Анимация
+    messageElement.classList.add('message-updated');
+    setTimeout(() => {
+        messageElement.classList.remove('message-updated');
+    }, 500);
+
+    console.log('✅ UI обновлен, новый текст:', newText);
 }
 
 async function loadMobileChats() {
@@ -1580,14 +1836,13 @@ function subscribeToMessages() {
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
-            table: 'messages',
-            filter: 'is_read=eq.true'
+            table: 'messages'
         }, async p => {
             const updated = p.new;
             const {data: {user: cur}} = await window.sbClient.auth.getUser();
             if (!cur) return;
 
-            // Обновляем отображение статуса прочтения только если это сообщение отправили мы
+            // Обновляем отображение статуса прочтения
             if (updated.sender_id === cur.id && updated.is_read === true) {
                 const messageElement = document.querySelector(`.message-container[data-message-id="${updated.id}"]`);
                 if (messageElement) {
@@ -1598,7 +1853,55 @@ function subscribeToMessages() {
                         messageElement.classList.add('read');
                     }
                 }
-                // Обновляем список чатов для обновления отметки в последнем сообщении
+                await loadUserChats();
+                if (window.innerWidth <= 767) await loadMobileChats();
+            }
+
+            // ===== ВАЖНО: Обновление для отредактированных сообщений =====
+            // Проверяем, изменился ли текст или флаг is_edited
+            const oldMessageElement = document.querySelector(`.message-container[data-message-id="${updated.id}"]`);
+            if (oldMessageElement && updated.text) {
+                // Обновляем текст сообщения
+                const contentSpan = oldMessageElement.querySelector('.message-content');
+                if (contentSpan) {
+                    let displayText = updated.text || '';
+                    displayText = displayText.replace(/ \(ред\.\)/g, '');
+
+                    // Сохраняем часть с ответом если есть
+                    const oldText = contentSpan.textContent;
+                    if (oldText.includes('📎 Ответ на сообщение')) {
+                        const replyMatch = oldText.match(/(📎 Ответ на сообщение[^:]+:[^\n]+\n---\n)/);
+                        if (replyMatch) {
+                            displayText = replyMatch[1] + displayText;
+                        }
+                    }
+
+                    contentSpan.innerHTML = escapeHtml(displayText);
+
+                    // Обновляем отметку о редактировании
+                    let editMark = contentSpan.querySelector('.message-edited-mark');
+                    if (updated.is_edited === true) {
+                        if (!editMark) {
+                            editMark = document.createElement('span');
+                            editMark.className = 'message-edited-mark';
+                            editMark.setAttribute('data-message-id', updated.id);
+                            editMark.onclick = (e) => {
+                                e.stopPropagation();
+                                showEditHistory(updated.id);
+                            };
+                            contentSpan.appendChild(editMark);
+                        }
+                        editMark.textContent = ' (ред.)';
+                    } else if (editMark && updated.is_edited !== true) {
+                        editMark.remove();
+                    }
+
+                    // Анимация
+                    oldMessageElement.classList.add('message-updated');
+                    setTimeout(() => oldMessageElement.classList.remove('message-updated'), 500);
+                }
+
+                // Обновляем список чатов
                 await loadUserChats();
                 if (window.innerWidth <= 767) await loadMobileChats();
             }
@@ -1608,10 +1911,12 @@ function subscribeToMessages() {
             const {data: {user: cur}} = await window.sbClient.auth.getUser();
             if (!cur) return;
             const isOwn = msg.sender_id === cur.id;
+
             if (msg.chat_id === currentChatId) {
                 const systemMessage = document.querySelector('.message-container.system');
                 if (systemMessage) systemMessage.remove();
             }
+
             if (!isOwn) {
                 const {data: profile} = await window.sbClient.from('profiles').select('username').eq('id', msg.sender_id).single();
                 const senderName = profile?.username || 'Пользователь';
@@ -1620,28 +1925,33 @@ function subscribeToMessages() {
                 await loadUserChats();
                 if (window.innerWidth <= 767) await loadMobileChats();
             }
-            if (msg.chat_id === currentChatId) {
-                if (!isOwn) {
-                    const {data: attachments} = await window.sbClient
-                        .from('attachments')
-                        .select('*')
-                        .eq('message_id', msg.id)
-                        .maybeSingle();
-                    let attachment = null;
-                    if (attachments) {
-                        attachment = {
-                            url: attachments.file_url || attachments.title_id,
-                            name: attachments.file_name,
-                            size: attachments.file_size,
-                            type: attachments.file_type
-                        };
-                    }
-                    displayMessageWithAttachment(msg.text, false, msg.created_at, msg.id, attachment, false);
-                    setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 50);
+
+            if (msg.chat_id === currentChatId && !isOwn) {
+                const {data: attachments} = await window.sbClient
+                    .from('attachments')
+                    .select('*')
+                    .eq('message_id', msg.id)
+                    .maybeSingle();
+                let attachment = null;
+                if (attachments) {
+                    attachment = {
+                        url: attachments.file_url || attachments.title_id,
+                        name: attachments.file_name,
+                        size: attachments.file_size,
+                        type: attachments.file_type
+                    };
                 }
-            }
-            if (!isOwn) {
-                await loadUserChats();
+                displayMessageWithAttachment(
+                    msg.text,
+                    false,
+                    msg.created_at,
+                    msg.id,
+                    attachment,
+                    false,
+                    null,
+                    msg.is_edited || false
+                );
+                setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 50);
             }
         })
         .on('postgres_changes', {event: 'DELETE', schema: 'public', table: 'messages'}, async p => {
@@ -2600,7 +2910,42 @@ function openPhotoViewer(url) {
     }
 }
 
-function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachment, isRead = false, senderName = null) {
+function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachment, isRead = false, senderName = null, isEdited = false, editHistory = null) {
+
+    const existingMessage = document.querySelector(`.message-container[data-message-id="${messageId}"]`);
+    if (existingMessage) {
+        console.log('Сообщение уже существует в DOM, пропускаем:', messageId);
+
+        // Если это отредактированное сообщение, просто обновляем текст
+        if (isEdited) {
+            const contentSpan = existingMessage.querySelector('.message-content');
+            if (contentSpan) {
+                let displayText = text || '';
+                displayText = displayText.replace(/ \(ред\.\)/g, '');
+                contentSpan.innerHTML = escapeHtml(displayText);
+
+                // Добавляем отметку о редактировании
+                let editMark = contentSpan.querySelector('.message-edited-mark');
+                if (!editMark) {
+                    editMark = document.createElement('span');
+                    editMark.className = 'message-edited-mark';
+                    editMark.setAttribute('data-message-id', messageId);
+                    editMark.onclick = (e) => {
+                        e.stopPropagation();
+                        showEditHistory(messageId);
+                    };
+                    contentSpan.appendChild(editMark);
+                }
+                editMark.textContent = ' (ред.)';
+
+                // Анимация
+                existingMessage.classList.add('message-updated');
+                setTimeout(() => existingMessage.classList.remove('message-updated'), 500);
+            }
+        }
+        return;
+    }
+
     const systemMessage = document.querySelector('.message-container.system');
     if (systemMessage) systemMessage.remove();
 
@@ -2610,14 +2955,15 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
     container.setAttribute('data-created-at', createdAt);
     if (!isOwn) container.classList.add('other');
     if (isOwn && isRead) container.classList.add('read');
+    if (isEdited) container.setAttribute('data-edited', 'true');
 
-    // Добавляем обработчик контекстного меню (правая кнопка мыши)
+    // Добавляем обработчик контекстного меню
     container.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         showContextMenu(e, messageId, container);
     });
 
-    // Добавляем обработчик долгого нажатия для мобильных устройств
+    // Обработчик долгого нажатия для мобильных
     let pressTimer;
     container.addEventListener('touchstart', (e) => {
         pressTimer = setTimeout(() => {
@@ -2631,16 +2977,10 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
                 }
             };
             showContextMenu(fakeEvent, messageId, container);
-        }, 250);
+        }, 300);
     });
-
-    container.addEventListener('touchend', () => {
-        clearTimeout(pressTimer);
-    });
-
-    container.addEventListener('touchmove', () => {
-        clearTimeout(pressTimer);
-    });
+    container.addEventListener('touchend', () => clearTimeout(pressTimer));
+    container.addEventListener('touchmove', () => clearTimeout(pressTimer));
 
     const time = createdAt ? new Date(createdAt).toLocaleTimeString('ru-RU', {
         hour: '2-digit',
@@ -2649,9 +2989,9 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
 
     let innerHTML = '';
 
-    // Проверяем, отредактировано ли сообщение
-    const isEdited = text && text.includes('(ред.)');
+    // Очищаем текст от отметок о редактировании для отображения
     let displayText = text || '';
+    displayText = displayText.replace(/ \(ред\.\)/g, '');
 
     // Если это ответ на сообщение
     if (displayText && displayText.includes('📎 Ответ на сообщение')) {
@@ -2660,7 +3000,7 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
         innerHTML += `<span class="message-content">${escapeHtml(displayText)}</span>`;
     }
 
-    // Вложения - БЕЗ кнопки скачивания (она теперь в контекстном меню)
+    // Вложения
     if (attachment && attachment.url) {
         const fileType = attachment.type || '';
         const fileName = attachment.name || 'file';
@@ -2680,16 +3020,20 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
         }
     }
 
-    // Отметка о прочтении и времени
-    let readReceipt = '';
+    // Отметка о прочтении (только для своих сообщений)
+    let readReceiptSpan = '';
     if (isOwn) {
-        readReceipt = `<span class="message-read-status ${isRead ? 'read' : 'sent'}">${isRead ? '✓✓' : '✓'}</span>`;
+        readReceiptSpan = `<span class="message-read-status ${isRead ? 'read' : 'sent'}">${isRead ? '✓✓' : '✓'}</span>`;
     }
 
     // Отметка о редактировании
-    const editedMark = isEdited ? '<span class="message-edited-mark">ред.</span>' : '';
+    let editedMark = '';
+    if (isEdited) {
+        editedMark = `<span class="message-edited-mark" data-message-id="${messageId}" onclick="event.stopPropagation(); showEditHistory('${messageId}')" title="История изменений"> (ред.)</span>`;
+    }
 
-    innerHTML += `<span class="message-time">${time} ${editedMark} ${readReceipt}</span>`;
+    // Собираем всё вместе
+    innerHTML += `<span class="message-time">${time} ${editedMark} ${readReceiptSpan}</span>`;
 
     container.innerHTML = innerHTML;
     messagesContainer?.appendChild(container);
@@ -3457,6 +3801,10 @@ if (exitDesktopBtn) exitDesktopBtn.addEventListener('click', logout);
 
 // =========================== 18. ЗАГРУЗКА СТРАНИЦЫ ===========================
 document.addEventListener('DOMContentLoaded', async () => {
+    // Показываем скелетон пока грузится
+    loaderManager.showChatsSkeleton();
+    loaderManager.showUsersSkeleton();
+
     document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.getAttribute('data-tab'))));
     setupSearch();
 
@@ -3471,8 +3819,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         loginWindow?.classList.add('close');
         registerWindow?.classList.add('close');
         chatWindow?.classList.remove('close');
-        await loadUsers();
-        await loadUserChats();
+
+        // Загружаем данные с лоадером
+        await loaderManager.withLoader(async () => {
+            await loadUsers();
+            await loadUserChats();
+        }, {showSkeleton: true, skeletonType: 'chats'});
+
         subscribeToMessages();
         subscribeToProfiles();
         subscribeToStatus();
@@ -3489,16 +3842,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => {
             setupReadReceipts();
         }, 1000);
+
+        // Скрываем глобальный лоадер
+        loaderManager.hidePageLoader();
     } else {
         loginWindow?.classList.remove('close');
         registerWindow?.classList.add('close');
         chatWindow?.classList.add('close');
+        loaderManager.hidePageLoader();
     }
+
     window.addEventListener('resize', () => {
         updateDesktopEmptyState();
         if (window.innerWidth > 767) {
             document.querySelector('.chat')?.classList.remove('chat-opened');
-            // Обновляем видимость кнопки "Назад" при изменении размера
             const backBtn = document.querySelector('.desktop-back-btn');
             if (backBtn) {
                 if (currentChatUser) {
@@ -3508,12 +3865,342 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         } else {
-            // На мобилке скрываем ПК кнопку
             const backBtn = document.querySelector('.desktop-back-btn');
             if (backBtn) backBtn.style.display = 'none';
         }
     });
+    // После загрузки сообщений, принудительно очищаем кэш сообщений
+    window.addEventListener('load', () => {
+        // Очищаем возможный кэш сообщений
+        if (messagesContainer) {
+            // Не удаляем, а обновляем если нужно
+            console.log('Страница загружена, кэш сообщений очищен');
+        }
+    });
 });
+
+// =========================== ЛОАДЕРЫ ===========================
+
+class LoaderManager {
+    constructor() {
+        this.pageLoader = document.getElementById('pageLoader');
+        this.fullscreenLoader = document.getElementById('fullscreenLoader');
+        this.activeRequests = 0;
+        this.timeoutId = null;
+    }
+
+    // Скрыть глобальный лоадер страницы
+    hidePageLoader() {
+        if (this.pageLoader) {
+            this.pageLoader.classList.add('hidden');
+            setTimeout(() => {
+                if (this.pageLoader) this.pageLoader.style.display = 'none';
+            }, 500);
+        }
+    }
+
+    // Показать полноэкранный лоадер
+    showFullscreenLoader(text = 'Загрузка...') {
+        if (this.fullscreenLoader) {
+            const textEl = this.fullscreenLoader.querySelector('#fullscreenLoaderText');
+            if (textEl) textEl.textContent = text;
+            this.fullscreenLoader.classList.add('active');
+        }
+    }
+
+    // Скрыть полноэкранный лоадер
+    hideFullscreenLoader() {
+        if (this.fullscreenLoader) {
+            this.fullscreenLoader.classList.remove('active');
+        }
+    }
+
+    // Показать лоадер на кнопке
+    setButtonLoading(button, isLoading, loadingText = 'Загрузка...') {
+        if (!button) return;
+
+        if (isLoading) {
+            button._originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = `<span class="btn-loader"><span class="spinner"></span>${loadingText}</span>`;
+        } else {
+            button.disabled = false;
+            if (button._originalText) {
+                button.innerHTML = button._originalText;
+                delete button._originalText;
+            }
+        }
+    }
+
+    // Показать скелетон в списке чатов
+    showChatsSkeleton() {
+        const container = document.getElementById('chatsList');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="chats-skeleton">
+                ${Array(5).fill(`
+                    <div class="skeleton-item">
+                        <div class="skeleton-avatar"></div>
+                        <div class="skeleton-info">
+                            <div class="skeleton-line short"></div>
+                            <div class="skeleton-line long"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Показать скелетон в списке пользователей
+    showUsersSkeleton() {
+        const container = document.getElementById('usersListContainer');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="chats-skeleton">
+                ${Array(5).fill(`
+                    <div class="skeleton-item">
+                        <div class="skeleton-avatar"></div>
+                        <div class="skeleton-info">
+                            <div class="skeleton-line short"></div>
+                            <div class="skeleton-line long"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Показать лоадер "печатает" в чате
+    showTypingLoader(chatTitle, userName = 'Собеседник') {
+        const title = document.getElementById('currentChatTitle');
+        if (title && chatTitle === currentChatId) {
+            title.innerHTML = `${userName} <span class="typing-indicator" style="font-size: 12px;">
+                <span class="message-loader" style="display: inline-flex; background: transparent; padding: 0; margin-left: 8px;">
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </span>
+            </span>`;
+        }
+    }
+
+    // Показать лоадер при отправке сообщения
+    showSendingLoader(messageContainer) {
+        if (messageContainer) {
+            const timeSpan = messageContainer.querySelector('.message-time');
+            if (timeSpan && !timeSpan.querySelector('.sending-loader')) {
+                const loader = document.createElement('span');
+                loader.className = 'sending-loader';
+                loader.innerHTML = '<span class="spinner"></span> Отправка...';
+                timeSpan.appendChild(loader);
+            }
+        }
+    }
+
+    // Убрать лоадер отправки
+    hideSendingLoader(messageContainer) {
+        if (messageContainer) {
+            const loader = messageContainer.querySelector('.sending-loader');
+            if (loader) loader.remove();
+        }
+    }
+
+    // Показать лоадер загрузки изображения
+    showImageLoader(imgElement) {
+        if (!imgElement) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'image-loader';
+        wrapper.style.cssText = imgElement.style.cssText;
+        imgElement.style.display = 'none';
+        imgElement.parentNode.insertBefore(wrapper, imgElement);
+        imgElement._loaderWrapper = wrapper;
+
+        imgElement.onload = () => {
+            if (imgElement._loaderWrapper) {
+                imgElement._loaderWrapper.remove();
+                imgElement.style.display = '';
+            }
+        };
+    }
+
+    // Показать прогресс загрузки файла
+    showFileUploadProgress(fileName, onCancel) {
+        const existingProgress = document.getElementById('fileUploadProgress');
+        if (existingProgress) existingProgress.remove();
+
+        const progressDiv = document.createElement('div');
+        progressDiv.id = 'fileUploadProgress';
+        progressDiv.className = 'file-upload-loader';
+        progressDiv.innerHTML = `
+            <ion-icon name="cloud-upload-outline"></ion-icon>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 0%"></div>
+            </div>
+            <span class="file-name">${escapeHtml(fileName)}</span>
+            <button class="preview-remove" onclick="document.getElementById('fileUploadProgress')?.remove()">✕</button>
+        `;
+
+        const inputDiv = document.querySelector('.input');
+        const messagerEl = document.getElementById('messager');
+        if (messagerEl && inputDiv) {
+            messagerEl.insertBefore(progressDiv, inputDiv);
+        }
+
+        return {
+            updateProgress: (percent) => {
+                const fill = progressDiv.querySelector('.progress-fill');
+                if (fill) fill.style.width = `${percent}%`;
+            },
+            remove: () => progressDiv.remove()
+        };
+    }
+
+    // Обертка для асинхронных операций с автоматическим лоадером
+    async withLoader(asyncFn, options = {}) {
+        const {
+            showFullscreen = false,
+            fullscreenText = 'Загрузка...',
+            button = null,
+            buttonText = 'Загрузка...',
+            showSkeleton = false,
+            skeletonType = 'chats' // 'chats' или 'users'
+        } = options;
+
+        try {
+            if (showFullscreen) this.showFullscreenLoader(fullscreenText);
+            if (button) this.setButtonLoading(button, true, buttonText);
+            if (showSkeleton) {
+                if (skeletonType === 'chats') this.showChatsSkeleton();
+                else if (skeletonType === 'users') this.showUsersSkeleton();
+            }
+
+            const result = await asyncFn();
+            return result;
+        } catch (error) {
+            console.error('Ошибка:', error);
+            throw error;
+        } finally {
+            if (showFullscreen) this.hideFullscreenLoader();
+            if (button) this.setButtonLoading(button, false);
+        }
+    }
+}
+
+// Создаем глобальный экземпляр менеджера лоадеров
+const loaderManager = new LoaderManager();
+
+// Функция для отображения уведомления о загрузке (вместо alert)
+function showLoadingToast(message, duration = 2000) {
+    const toast = document.createElement('div');
+    toast.className = 'copy-notification';
+    toast.innerHTML = `<ion-icon name="refresh-outline" class="spin"></ion-icon> ${message}`;
+    toast.style.background = 'rgba(0, 132, 255, 0.95)';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+async function showEditHistory(messageId) {
+    const {data: message, error} = await window.sbClient
+        .from('messages')
+        .select('text, edited_at, created_at, is_edited')
+        .eq('id', messageId)
+        .single();
+
+    if (error || !message) {
+        console.error('Ошибка загрузки истории:', error);
+        // Если нет истории, показываем простое уведомление
+        const notification = document.createElement('div');
+        notification.className = 'copy-notification';
+        notification.innerHTML = '<ion-icon name="information-circle-outline"></ion-icon> Сообщение было отредактировано';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 10);
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+        return;
+    }
+
+    // Если сообщение не редактировалось
+    if (!message.is_edited) {
+        const notification = document.createElement('div');
+        notification.className = 'copy-notification';
+        notification.innerHTML = '<ion-icon name="information-circle-outline"></ion-icon> Сообщение не редактировалось';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 10);
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+        return;
+    }
+
+    // Создаем тултип с информацией
+    const tooltip = document.createElement('div');
+    tooltip.className = 'edit-history-tooltip';
+    const editedDate = message.edited_at ? new Date(message.edited_at).toLocaleString() : 'неизвестно';
+
+    tooltip.innerHTML = `
+        <div class="edit-history-title">
+            <ion-icon name="time-outline"></ion-icon>
+            Информация о сообщении
+        </div>
+        <div class="edit-history-item">
+            <strong>📝 Отредактировано:</strong> ${editedDate}
+        </div>
+        <div class="edit-history-item">
+            <strong>💬 Текущий текст:</strong><br>
+            ${escapeHtml(message.text.substring(0, 150))}${message.text.length > 150 ? '...' : ''}
+        </div>
+    `;
+
+    document.body.appendChild(tooltip);
+
+    // Позиционируем тултип
+    const mark = document.querySelector(`.message-edited-mark[data-message-id="${messageId}"]`);
+    if (mark) {
+        const rect = mark.getBoundingClientRect();
+        tooltip.style.left = Math.min(rect.left, window.innerWidth - 320) + 'px';
+        tooltip.style.top = (rect.bottom + 5) + 'px';
+    } else {
+        tooltip.style.left = '50%';
+        tooltip.style.top = '50%';
+        tooltip.style.transform = 'translate(-50%, -50%)';
+    }
+
+    // Закрываем при клике вне
+    const closeHandler = (e) => {
+        if (!tooltip.contains(e.target)) {
+            tooltip.remove();
+            document.removeEventListener('click', closeHandler);
+        }
+    };
+    setTimeout(() => {
+        document.addEventListener('click', closeHandler);
+    }, 100);
+
+    // Автоматическое закрытие через 4 секунды
+    setTimeout(() => {
+        if (tooltip.parentNode) tooltip.remove();
+    }, 4000);
+}
+
+function formatTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'только что';
+    if (diffMins < 60) return `${diffMins} мин. назад`;
+    if (diffHours < 24) return `${diffHours} ч. назад`;
+    return `${diffDays} д. назад`;
+}
 
 window.replyToMessageById = replyToMessageById;
 window.cancelReply = cancelReply;

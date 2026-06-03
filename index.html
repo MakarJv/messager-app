@@ -11,7 +11,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Messenger">
     <title>Messenger-app</title>
-    <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="src/style.css">
@@ -20,6 +19,29 @@
           href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
 </head>
 <body>
+
+<!-- Глобальный лоадер страницы -->
+<div class="page-loader" id="pageLoader">
+    <div class="loader-container">
+        <div class="loader-spinner">
+            <div class="loader-logo">💬</div>
+        </div>
+        <div class="loader-text">
+            Загрузка мессенджера
+            <div class="loader-dots">
+                <span>.</span><span>.</span><span>.</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Полноэкранный лоадер для действий -->
+<div class="fullscreen-loader" id="fullscreenLoader">
+    <div class="loader-card">
+        <div class="loader-spinner-small"></div>
+        <div class="loader-text" id="fullscreenLoaderText">Загрузка...</div>
+    </div>
+</div>
 
 <!-- 1. ВХОД -->
 <div class="container login">
@@ -42,9 +64,9 @@
     <a id="login" href="#">Войти</a>
 </div>
 
-<!-- 3. ЧАТ -->
+<!-- 3. ЧАТ (основной интерфейс) -->
 <div class="container chat close">
-    <!-- ЛЕВАЯ ПАНЕЛЬ -->
+    <!-- ЛЕВАЯ ПАНЕЛЬ: список чатов, пользователи, поиск, футер -->
     <div id="chats">
         <div class="navBar">
             <div class="chats-title">Мессенджер</div>
@@ -59,64 +81,51 @@
         </div>
         <div class="list-container" id="chatsList"></div>
         <div class="list-container hidden" id="usersListContainer"></div>
-        <!-- ДЕСКТОПНЫЙ ФУТЕР (виден на ПК) -->
+        <!-- Десктопный футер (ПК) -->
         <div class="desktop-footer">
             <div class="desktop-footer-item" id="profileDesktopBtn">
                 <ion-icon name="person-circle-outline"></ion-icon>
-                <span>Профиль</span>
-            </div>
+                <span>Профиль</span></div>
             <div class="desktop-footer-item" id="settingsDesktopBtn">
                 <ion-icon name="settings-outline"></ion-icon>
-                <span>Настройки</span>
-            </div>
+                <span>Настройки</span></div>
             <div class="desktop-footer-item" id="exitDesktopBtn">
                 <ion-icon name="log-out-outline"></ion-icon>
-                <span>Выход</span>
-            </div>
+                <span>Выход</span></div>
         </div>
-
-        <!-- МОБИЛЬНЫЙ ФУТЕР (виден на телефоне) -->
+        <!-- Мобильный футер (телефон) -->
         <div class="mobile-footer">
             <div class="mobile-footer-item" id="mobileProfileBtn">
                 <ion-icon name="person-circle-outline"></ion-icon>
-                <span>Профиль</span>
-            </div>
+                <span>Профиль</span></div>
             <div class="mobile-footer-item" id="mobileSettingsBtn">
                 <ion-icon name="settings-outline"></ion-icon>
-                <span>Настройки</span>
-            </div>
+                <span>Настройки</span></div>
             <div class="mobile-footer-item" id="mobileExitBtn">
                 <ion-icon name="log-out-outline"></ion-icon>
-                <span>Выход</span>
-            </div>
+                <span>Выход</span></div>
         </div>
     </div>
 
-    <!-- ПРАВАЯ ПАНЕЛЬ -->
+    <!-- ПРАВАЯ ПАНЕЛЬ: активный чат, сообщения, ввод -->
     <div id="messager">
         <div class="navBar">
             <div style="display:flex;align-items:center;">
                 <button class="mobile-back-btn" id="mobileBackBtn">
                     <ion-icon name="arrow-back-outline"></ion-icon>
                 </button>
-
-                <div class="chat-title" id="currentChatTitle">
-                    Выберите чат
-                </div>
+                <div class="chat-title" id="currentChatTitle">Выберите чат</div>
             </div>
             <div class="profile-icon">
                 <ion-icon name="person-circle-outline"></ion-icon>
             </div>
         </div>
-
         <div class="empty-chat-screen" id="emptyChatScreen">
             <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
             <h2>Выберите чат</h2>
             <p>Выберите диалог из списка слева</p>
         </div>
-
         <div id="messageText" class="hidden"></div>
-
         <div class="input">
             <div class="attach-wrapper">
                 <button id="attachBtn" class="attach-btn">
@@ -152,10 +161,8 @@
                 <ion-icon name="send-outline"></ion-icon>
             </button>
         </div>
-
         <input type="file" id="photoInput" accept="image/*" style="display: none">
         <input type="file" id="fileInput" style="display: none">
-
         <div class="photo-viewer" id="photoViewer" style="display: none;">
             <div class="photo-viewer-content">
                 <button class="photo-viewer-close" id="photoViewerClose">
@@ -167,7 +174,6 @@
     </div>
 </div>
 
-<!-- 5. СКРИПТЫ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="src/app.js"></script>
 </body>
