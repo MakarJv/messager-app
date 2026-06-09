@@ -15,11 +15,7 @@ const VAPID_PUBLIC_KEY = 'BD-Cv932C5rP0_50uvVg102h85E5HTDY1ZgSYlMpgAG9HGLI1SuYr7
 const VAPID_PRIVATE_KEY = 'Nn7DyXj20bg6C6-z64jqw38gs2uAqtvYXUJg3xXe1Mw';
 
 // Настройка web-push
-webpush.setVapidDetails(
-    'mailto:messenger@app.com',
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-);
+webpush.setVapidDetails('mailto:messenger@app.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 // =========================== ХРАНИЛИЩЕ ПОДПИСОК ===========================
 const pushSubscriptions = new Map();
@@ -301,6 +297,5 @@ module.exports = {
             console.error('Ошибка отправки push:', error);
             return false;
         }
-    },
-    getSubscriptionsCount: () => pushSubscriptions.size
+    }, getSubscriptionsCount: () => pushSubscriptions.size
 };

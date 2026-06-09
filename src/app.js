@@ -548,9 +548,7 @@ async function loadUsers() {
     for (const user of (data || [])) {
         const statusData = await getUserStatusWithLastSeen(user.id);
         usersWithStatus.push({
-            ...user,
-            status: statusData.status,
-            lastSeen: statusData.rawLastSeen || new Date(0)
+            ...user, status: statusData.status, lastSeen: statusData.rawLastSeen || new Date(0)
         });
     }
 
@@ -638,10 +636,7 @@ async function loadUserChats() {
             let messagePreview = '';
             if (attachment) {
                 const fileType = attachment.file_type || '';
-                if (fileType.startsWith('image/')) messagePreview = '📸 Фото';
-                else if (fileType.startsWith('video/')) messagePreview = '🎬 Видео';
-                else if (fileType.startsWith('audio/')) messagePreview = '🎵 Аудио';
-                else messagePreview = '📎 Файл';
+                if (fileType.startsWith('image/')) messagePreview = '📸 Фото'; else if (fileType.startsWith('video/')) messagePreview = '🎬 Видео'; else if (fileType.startsWith('audio/')) messagePreview = '🎵 Аудио'; else messagePreview = '📎 Файл';
             } else if (lastMessage.text && lastMessage.text.trim()) {
                 messagePreview = lastMessage.text.trim();
                 if (messagePreview.length > 50) messagePreview = messagePreview.slice(0, 47) + '...';
@@ -706,8 +701,7 @@ async function renderChatsList() {
         item.setAttribute('data-user-id', chat.userId);
         item.setAttribute('data-chat-id', chat.chatId);
         const time = chat.lastMessageTime ? new Date(chat.lastMessageTime).toLocaleTimeString('ru-RU', {
-            hour: '2-digit',
-            minute: '2-digit'
+            hour: '2-digit', minute: '2-digit'
         }) : '';
         const avatarUrl = await getAvatarUrl(chat.userId);
         let unreadBadge = '';
@@ -782,8 +776,7 @@ async function getOrCreateChatId(u1, u2) {
         const {data: newChat, error} = await window.sbClient.from('chats').insert({}).select().single();
         if (error) throw error;
         await window.sbClient.from('chat_participants').insert([{
-            chat_id: newChat.id,
-            user_id: u1
+            chat_id: newChat.id, user_id: u1
         }, {chat_id: newChat.id, user_id: u2}]);
         return newChat.id;
     } catch (err) {
@@ -895,8 +888,7 @@ async function markMessagesAsRead(chatId) {
             const {error: updateError} = await window.sbClient
                 .from('messages')
                 .update({
-                    is_read: true,
-                    read_at: new Date().toISOString()
+                    is_read: true, read_at: new Date().toISOString()
                 })
                 .in('id', unreadMessages.map(m => m.id));
 
@@ -992,15 +984,7 @@ async function loadMessages() {
                 }
             }
 
-            displayMessageWithAttachment(
-                msg.text,
-                isOwn,
-                msg.created_at,
-                msg.id,
-                attachment,
-                msg.is_read,
-                senderName,
-                msg.is_edited === true  // Важно: строгое сравнение
+            displayMessageWithAttachment(msg.text, isOwn, msg.created_at, msg.id, attachment, msg.is_read, senderName, msg.is_edited === true  // Важно: строгое сравнение
             );
         }
         setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 100);
@@ -1048,11 +1032,7 @@ function setupReadReceipts() {
 
         // Используем Intersection Observer для точного определения
         const observer = new IntersectionObserver((entries) => {
-            const visibleUnread = entries.some(entry =>
-                entry.isIntersecting &&
-                entry.target.classList.contains('other') &&
-                !entry.target.classList.contains('read')
-            );
+            const visibleUnread = entries.some(entry => entry.isIntersecting && entry.target.classList.contains('other') && !entry.target.classList.contains('read'));
 
             if (visibleUnread) {
                 setTimeout(() => markMessagesAsRead(currentChatId), 300);
@@ -1155,9 +1135,7 @@ async function editMessage(messageId, newText) {
         const {error} = await window.sbClient
             .from('messages')
             .update({
-                text: newText.trim(),
-                is_edited: true,
-                edited_at: now
+                text: newText.trim(), is_edited: true, edited_at: now
             })
             .eq('id', messageId);
 
@@ -1735,7 +1713,7 @@ async function copyMessageText(messageId) {
         if (success) {
             console.log('✅ Текст скопирован через execCommand');
             showCopyNotification(true);
-            return;
+
         } else {
             throw new Error('execCommand copy failed');
         }
@@ -1834,9 +1812,7 @@ function subscribeToMessages() {
     if (messagesSubscription) window.sbClient.removeChannel(messagesSubscription);
     messagesSubscription = window.sbClient.channel('messages-realtime')
         .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'messages'
+            event: 'UPDATE', schema: 'public', table: 'messages'
         }, async p => {
             const updated = p.new;
             const {data: {user: cur}} = await window.sbClient.auth.getUser();
@@ -1941,16 +1917,7 @@ function subscribeToMessages() {
                         type: attachments.file_type
                     };
                 }
-                displayMessageWithAttachment(
-                    msg.text,
-                    false,
-                    msg.created_at,
-                    msg.id,
-                    attachment,
-                    false,
-                    null,
-                    msg.is_edited || false
-                );
+                displayMessageWithAttachment(msg.text, false, msg.created_at, msg.id, attachment, false, null, msg.is_edited || false);
                 setTimeout(() => messagesContainer && (messagesContainer.scrollTop = messagesContainer.scrollHeight), 50);
             }
         })
@@ -2034,10 +2001,7 @@ function subscribeToAvatars() {
     if (avatarSubscription) window.sbClient.removeChannel(avatarSubscription);
     avatarSubscription = window.sbClient.channel('avatars-realtime')
         .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles',
-            filter: 'avatar_url=neq.'
+            event: 'UPDATE', schema: 'public', table: 'profiles', filter: 'avatar_url=neq.'
         }, async (payload) => {
             const updated = payload.new;
             if (updated.avatar_url !== undefined) {
@@ -2078,10 +2042,7 @@ async function updateUserStatus(status) {
     const {data: {user}} = await window.sbClient.auth.getUser();
     if (!user) return;
     await window.sbClient.from('user_status').upsert({
-        id: user.id,
-        status,
-        last_seen: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        id: user.id, status, last_seen: new Date().toISOString(), updated_at: new Date().toISOString()
     });
 }
 
@@ -2115,10 +2076,7 @@ async function updateTypingStatus(chatId, isTyping) {
     if (!user) return;
     try {
         await window.sbClient.from('typing_status').upsert({
-            user_id: user.id,
-            chat_id: chatId,
-            is_typing: isTyping,
-            updated_at: new Date().toISOString()
+            user_id: user.id, chat_id: chatId, is_typing: isTyping, updated_at: new Date().toISOString()
         }, {onConflict: 'user_id,chat_id'});
     } catch (err) {
         console.error('Ошибка:', err);
@@ -2259,9 +2217,7 @@ async function getUserStatusWithLastSeen(uid) {
 
         if (error || !data) {
             return {
-                status: 'offline',
-                lastSeen: 'был(а) недавно',
-                rawLastSeen: new Date(0)
+                status: 'offline', lastSeen: 'был(а) недавно', rawLastSeen: new Date(0)
             };
         }
 
@@ -2281,16 +2237,12 @@ async function getUserStatusWithLastSeen(uid) {
         }
 
         return {
-            status,
-            lastSeen: lastSeenText,
-            rawLastSeen: rawLastSeen || new Date(0)
+            status, lastSeen: lastSeenText, rawLastSeen: rawLastSeen || new Date(0)
         };
     } catch (err) {
         console.error('Ошибка получения статуса:', err);
         return {
-            status: 'offline',
-            lastSeen: 'был(а) недавно',
-            rawLastSeen: new Date(0)
+            status: 'offline', lastSeen: 'был(а) недавно', rawLastSeen: new Date(0)
         };
     }
 }
@@ -2602,8 +2554,7 @@ async function showSettingsModal() {
                         return;
                     }
                     const success = await subscribeToPush();
-                    if (success) testPushItem.style.display = 'block';
-                    else e.target.checked = false;
+                    if (success) testPushItem.style.display = 'block'; else e.target.checked = false;
                 } else {
                     await unsubscribeFromPush();
                     testPushItem.style.display = 'none';
@@ -2866,8 +2817,7 @@ async function uploadFile(file) {
     const filePath = `public/${fileName}`;
     try {
         const {error} = await window.sbClient.storage.from('chat-attachments').upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
+            cacheControl: '3600', upsert: false
         });
         if (error) {
             console.error('❌ Ошибка загрузки:', error);
@@ -2969,11 +2919,8 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
         pressTimer = setTimeout(() => {
             const touch = e.touches[0];
             const fakeEvent = {
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                preventDefault: () => {
-                },
-                stopPropagation: () => {
+                clientX: touch.clientX, clientY: touch.clientY, preventDefault: () => {
+                }, stopPropagation: () => {
                 }
             };
             showContextMenu(fakeEvent, messageId, container);
@@ -2983,8 +2930,7 @@ function displayMessageWithAttachment(text, isOwn, createdAt, messageId, attachm
     container.addEventListener('touchmove', () => clearTimeout(pressTimer));
 
     const time = createdAt ? new Date(createdAt).toLocaleTimeString('ru-RU', {
-        hour: '2-digit',
-        minute: '2-digit'
+        hour: '2-digit', minute: '2-digit'
     }) : getShortTime();
 
     let innerHTML = '';
@@ -3051,10 +2997,7 @@ function setReplyToMessage(messageId, senderName, messageText, attachment = null
     removeReplyPreview();
 
     replyToMessage = {
-        id: messageId,
-        senderName: senderName,
-        text: messageText,
-        attachment: attachment
+        id: messageId, senderName: senderName, text: messageText, attachment: attachment
     };
 
     // Создаем превью ответа
@@ -3342,8 +3285,7 @@ async function subscribeToPush() {
         const publicKey = await getVapidPublicKey();
         const convertedKey = urlBase64ToUint8Array(publicKey);
         subscription = await swRegistration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedKey
+            userVisibleOnly: true, applicationServerKey: convertedKey
         });
         console.log('✅ Push-подписка создана', subscription);
         await saveSubscriptionToServer(subscription);
@@ -3353,10 +3295,7 @@ async function subscribeToPush() {
         return true;
     } catch (error) {
         console.error('❌ Ошибка подписки:', error);
-        if (error.name === 'NotAllowedError') alert('⚠️ Необходимо разрешить уведомления в настройках браузера');
-        else if (error.name === 'InvalidStateError') alert('⚠️ Service Worker не готов. Попробуйте обновить страницу (F5)');
-        else if (error.message.includes('ApplicationServerKey')) alert('⚠️ Ошибка ключа шифрования. Попробуйте перезагрузить страницу');
-        else alert('❌ Ошибка подключения push: ' + error.message);
+        if (error.name === 'NotAllowedError') alert('⚠️ Необходимо разрешить уведомления в настройках браузера'); else if (error.name === 'InvalidStateError') alert('⚠️ Service Worker не готов. Попробуйте обновить страницу (F5)'); else if (error.message.includes('ApplicationServerKey')) alert('⚠️ Ошибка ключа шифрования. Попробуйте перезагрузить страницу'); else alert('❌ Ошибка подключения push: ' + error.message);
         return false;
     }
 }
@@ -3417,9 +3356,7 @@ async function testPushNotification() {
     }
     try {
         const response = await fetch('/api/send-push', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
                 toUserId: user.id,
                 title: '🔔 Тестовое уведомление',
                 body: 'Если вы видите это сообщение, push-уведомления работают!',
@@ -3508,8 +3445,7 @@ async function downloadFile(url, filename) {
 
 function loadSavedTheme() {
     const savedTheme = localStorage.getItem('darkTheme');
-    if (savedTheme === 'true') document.body.classList.add('dark');
-    else document.body.classList.remove('dark');
+    if (savedTheme === 'true') document.body.classList.add('dark'); else document.body.classList.remove('dark');
 }
 
 // =========================== 16. ДЕСКТОП/МОБИЛЬНЫЕ ФУНКЦИИ ===========================
@@ -3664,7 +3600,7 @@ function handleEscKey(event) {
         if (window.innerWidth <= 767 && document.querySelector('.chat')?.classList.contains('chat-opened')) {
             closeChatOnMobile();
             console.log('❌ Чат закрыт на мобилке по ESC');
-            return;
+
         }
     }
 }
@@ -4050,8 +3986,7 @@ class LoaderManager {
             updateProgress: (percent) => {
                 const fill = progressDiv.querySelector('.progress-fill');
                 if (fill) fill.style.width = `${percent}%`;
-            },
-            remove: () => progressDiv.remove()
+            }, remove: () => progressDiv.remove()
         };
     }
 
@@ -4070,8 +4005,7 @@ class LoaderManager {
             if (showFullscreen) this.showFullscreenLoader(fullscreenText);
             if (button) this.setButtonLoading(button, true, buttonText);
             if (showSkeleton) {
-                if (skeletonType === 'chats') this.showChatsSkeleton();
-                else if (skeletonType === 'users') this.showUsersSkeleton();
+                if (skeletonType === 'chats') this.showChatsSkeleton(); else if (skeletonType === 'users') this.showUsersSkeleton();
             }
 
             const result = await asyncFn();

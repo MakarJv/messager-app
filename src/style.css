@@ -1755,6 +1755,7 @@ input[type="checkbox"]:checked + .toggle-slider:before {
 .empty-chat-screen h2 {
     font-size: 24px;
     font-weight: 600;
+    margin: 0;
 }
 
 .empty-chat-screen p {

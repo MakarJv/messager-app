@@ -2,21 +2,21 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0084ff">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Messenger">
+    <meta content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover"
+          name="viewport">
+    <link href="manifest.json" rel="manifest">
+    <meta content="#0084ff" name="theme-color">
+    <meta content="yes" name="mobile-web-app-capable">
+    <meta content="yes" name="apple-mobile-web-app-capable">
+    <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style">
+    <meta content="Messenger" name="apple-mobile-web-app-title">
     <title>Messenger-app</title>
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="src/style.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon"
-          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+    <link href="src/style.css" rel="stylesheet">
+    <link href="manifest.json" rel="manifest">
+    <link href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>"
+          rel="icon">
 </head>
 <body>
 
@@ -46,22 +46,22 @@
 <!-- 1. ВХОД -->
 <div class="container login">
     <h2>Войти</h2>
-    <input type="email" id="loginUsername" placeholder="Email">
-    <input type="password" id="loginPassword" placeholder="Пароль">
+    <input id="loginUsername" placeholder="Email" type="email">
+    <input id="loginPassword" placeholder="Пароль" type="password">
     <button id="enterBtn">Войти</button>
     <a href="#">Забыли пароль?</a>
-    <a id="register" href="#">Регистрация</a>
+    <a href="#" id="register">Регистрация</a>
 </div>
 
 <!-- 2. РЕГИСТРАЦИЯ -->
 <div class="container register close">
     <h2>Регистрация</h2>
-    <input type="text" id="regUsername" placeholder="Имя">
-    <input type="email" id="regEmail" placeholder="Email">
-    <input type="password" id="regPassword" placeholder="Пароль">
+    <input id="regUsername" placeholder="Имя" type="text">
+    <input id="regEmail" placeholder="Email" type="email">
+    <input id="regPassword" placeholder="Пароль" type="password">
     <button id="regBtn">Зарегистрироваться</button>
     <a href="#">Забыли пароль?</a>
-    <a id="login" href="#">Войти</a>
+    <a href="#" id="login">Войти</a>
 </div>
 
 <!-- 3. ЧАТ (основной интерфейс) -->
@@ -73,7 +73,7 @@
         </div>
         <div class="search-box">
             <ion-icon name="search-outline"></ion-icon>
-            <input type="text" id="searchInput" placeholder="Поиск пользователей...">
+            <input id="searchInput" placeholder="Поиск пользователей..." type="text">
         </div>
         <div class="tabs">
             <div class="tab active" data-tab="chats">Чаты</div>
@@ -125,26 +125,26 @@
             <h2>Выберите чат</h2>
             <p>Выберите диалог из списка слева</p>
         </div>
-        <div id="messageText" class="hidden"></div>
+        <div class="hidden" id="messageText"></div>
         <div class="input">
             <div class="attach-wrapper">
-                <button id="attachBtn" class="attach-btn">
+                <button class="attach-btn" id="attachBtn">
                     <ion-icon name="attach-outline"></ion-icon>
                 </button>
                 <div class="attach-menu" id="attachMenu" style="display: none;">
-                    <button id="attachPhotoBtn" class="attach-menu-item">
+                    <button class="attach-menu-item" id="attachPhotoBtn">
                         <ion-icon name="camera-outline"></ion-icon>
                         <span>Фото</span></button>
-                    <button id="attachFileBtn" class="attach-menu-item">
+                    <button class="attach-menu-item" id="attachFileBtn">
                         <ion-icon name="document-outline"></ion-icon>
                         <span>Файл</span></button>
                 </div>
             </div>
-            <button id="emojiBtn" class="emoji-btn">
+            <button class="emoji-btn" id="emojiBtn">
                 <ion-icon name="happy-outline"></ion-icon>
             </button>
             <div class="message-input-wrapper">
-                <textarea id="message" placeholder="Введите сообщение..." autocomplete="off"></textarea>
+                <textarea autocomplete="off" id="message" placeholder="Введите сообщение..."></textarea>
                 <div class="emoji-picker" id="emojiPicker" style="display: none;">
                     <div class="emoji-list">
                         <span>😀</span><span>😃</span><span>😄</span><span>😁</span><span>😆</span>
@@ -157,18 +157,18 @@
                 </div>
                 <div class="input-char-counter" id="charCounter"></div>
             </div>
-            <button id="sendBtn" class="send-btn">
+            <button class="send-btn" id="sendBtn">
                 <ion-icon name="send-outline"></ion-icon>
             </button>
         </div>
-        <input type="file" id="photoInput" accept="image/*" style="display: none">
-        <input type="file" id="fileInput" style="display: none">
+        <input accept="image/*" id="photoInput" style="display: none" type="file">
+        <input id="fileInput" style="display: none" type="file">
         <div class="photo-viewer" id="photoViewer" style="display: none;">
             <div class="photo-viewer-content">
                 <button class="photo-viewer-close" id="photoViewerClose">
                     <ion-icon name="close-outline"></ion-icon>
                 </button>
-                <img id="photoViewerImg" src="" alt="">
+                <img alt="" id="photoViewerImg" src="">
             </div>
         </div>
     </div>
